@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("GIG_SERVICE_DATABASE_URL")
+}
+
+enum GigStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  DELETED
+}
+
+model Category {
+  id    Int    @id @default(autoincrement())
+  title String @db.VarChar(255)
+  slug  String @unique @db.VarChar(255)
+
+  gigs Gig[]
+
+  @@map("categories")
+}
+
+model Gig {
+  id            Int       @id @default(autoincrement())
+  freelancerId  Int       @map("freelancer_id")
+  categoryId    Int       @map("category_id")
+  title         String    @db.VarChar(255)
+  description   String?   @db.Text
+  cost          Decimal   @db.Decimal(19, 2)
+  deliveryTime  Int       @map("delivery_time")
+  revisionCount Int       @map("revision_count")
+  status        GigStatus @default(ACTIVE)
+  coverImage    String?   @map("cover_image") @db.VarChar(500)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  category Category   @relation(fields: [categoryId], references: [id])
+  tags     GigTag[]
+  images   GigImage[]
+
+  @@map("gigs")
+}
+
+model Tag {
+  id   Int    @id @default(autoincrement())
+  name String @unique @db.VarChar(100)
+  slug String @unique @db.VarChar(100)
+
+  gigs GigTag[]
+
+  @@map("tags")
+}
+
+model GigTag {
+  gigId Int @map("gig_id")
+  tagId Int @map("tag_id")
+
+  gig Gig @relation(fields: [gigId], references: [id], onDelete: Cascade)
+  tag Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([gigId, tagId])
+  @@map("gig_tags")
+}
+
+model GigImage {
+  id        Int    @id @default(autoincrement())
+  gigId     Int    @map("gig_id")
+  imageUrl  String @map("image_url") @db.VarChar(500)
+  sortOrder Int    @default(0) @map("sort_order")
+
+  gig Gig @relation(fields: [gigId], references: [id], onDelete: Cascade)
+
+  @@map("gig_images")
+}

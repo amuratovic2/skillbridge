@@ -1,0 +1,46 @@
+server:
+  port: 3000
+
+spring:
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "http://localhost:4200"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: true
+      routes:
+        # Auth routes (no JWT validation needed)
+        - id: auth-service
+          uri: http://localhost:3001
+          predicates:
+            - Path=/api/auth/**
+
+        # User service routes
+        - id: user-service-users
+          uri: http://localhost:3001
+          predicates:
+            - Path=/api/users/**,/api/portfolios/**,/api/skills/**
+
+        # Gig service routes
+        - id: gig-service
+          uri: http://localhost:3002
+          predicates:
+            - Path=/api/gigs/**,/api/categories/**,/api/tags/**
+
+        # Order service routes
+        - id: order-service
+          uri: http://localhost:3003
+          predicates:
+            - Path=/api/orders/**,/api/deliveries/**,/api/custom-offers/**
+
+        # Communication service routes
+        - id: communication-service
+          uri: http://localhost:3004
+          predicates:
+            - Path=/api/messages/**,/api/reviews/**,/api/disputes/**,/api/notifications/**
+
+services:
+  user-service-url: http://localhost:3001

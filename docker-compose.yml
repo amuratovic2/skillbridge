@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  skillbridge-db:
+    image: postgres:16-alpine
+    container_name: skillbridge-postgres
+    restart: unless-stopped
+    ports:
+      - '5433:5432'
+    environment:
+      POSTGRES_USER: skillbridge
+      POSTGRES_PASSWORD: skillbridge123
+      POSTGRES_DB: skillbridge
+    volumes:
+      - skillbridge_pgdata:/var/lib/postgresql/data
+      - ./docker/init-schemas.sql:/docker-entrypoint-initdb.d/01-init-schemas.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U skillbridge -d skillbridge']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  skillbridge_pgdata:
