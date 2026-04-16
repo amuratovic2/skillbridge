@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("ORDER_SERVICE_DATABASE_URL")
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  IN_PROGRESS
+  DELIVERED
+  REVISION_REQUESTED
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum CustomOfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+  EXPIRED
+}
+
+model Order {
+  id               BigInt      @id @default(autoincrement())
+  clientId         Int         @map("client_id")
+  gigId            Int         @map("gig_id")
+  orderDate        DateTime    @default(now()) @map("order_date")
+  status           OrderStatus @default(PENDING)
+  totalCost        Decimal     @map("total_cost") @db.Decimal(19, 2)
+  deliveryDeadline DateTime?   @map("delivery_deadline")
+  maxRevisions     Int         @default(3) @map("max_revisions")
+  usedRevisions    Int         @default(0) @map("used_revisions")
+  completedAt      DateTime?   @map("completed_at")
+  cancelledAt      DateTime?   @map("cancelled_at")
+
+  history    OrderHistory[]
+  deliveries Delivery[]
+
+  @@map("orders")
+}
+
+model OrderHistory {
+  id              BigInt   @id @default(autoincrement())
+  orderId         BigInt   @map("order_id")
+  changedByUserId BigInt   @map("changed_by_user_id")
+  actionType      String   @map("action_type") @db.VarChar(255)
+  oldStatus       String   @map("old_status") @db.VarChar(255)
+  newStatus       String   @map("new_status") @db.VarChar(255)
+  note            String?  @db.VarChar(255)
+  changedAt       DateTime @default(now()) @map("changed_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_history")
+}
+
+model Delivery {
+  id            BigInt   @id @default(autoincrement())
+  orderId       BigInt   @map("order_id")
+  versionNumber Int      @map("version_number")
+  message       String?  @db.Text
+  fileUrl       String?  @map("file_url") @db.VarChar(500)
+  fileName      String?  @map("file_name") @db.VarChar(255)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("deliveries")
+}
+
+model CustomOffer {
+  id            BigInt            @id @default(autoincrement())
+  gigId         Int?              @map("gig_id")
+  senderId      Int               @map("sender_id")
+  receiverId    Int               @map("receiver_id")
+  title         String            @db.VarChar(255)
+  description   String?           @db.Text
+  price         Decimal           @db.Decimal(19, 2)
+  deliveryDays  Int               @map("delivery_days")
+  revisionCount Int               @map("revision_count")
+  status        CustomOfferStatus @default(PENDING)
+  expiresAt     DateTime?         @map("expires_at")
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  @@map("custom_offers")
+}
