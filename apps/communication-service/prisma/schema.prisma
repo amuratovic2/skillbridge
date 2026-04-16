@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("COMM_SERVICE_DATABASE_URL")
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED_BUYER
+  RESOLVED_SELLER
+  CLOSED
+}
+
+enum NotificationType {
+  ORDER_UPDATE
+  NEW_MESSAGE
+  REVIEW_RECEIVED
+  DISPUTE_UPDATE
+  CUSTOM_OFFER
+  SYSTEM
+}
+
+model Message {
+  id         Int      @id @default(autoincrement())
+  senderId   Int      @map("sender_id")
+  receiverId Int      @map("receiver_id")
+  orderId    Int?     @map("order_id")
+  content    String   @db.VarChar(2000)
+  isRead     Boolean  @default(false) @map("is_read")
+  sentAt     DateTime @default(now()) @map("sent_at")
+
+  @@index([senderId, receiverId])
+  @@index([orderId])
+  @@map("messages")
+}
+
+model Review {
+  id         Int      @id @default(autoincrement())
+  orderId    Int      @map("order_id")
+  reviewerId Int      @map("reviewer_id")
+  revieweeId Int      @map("reviewee_id")
+  rating     Int
+  comment    String?  @db.VarChar(1000)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([orderId, reviewerId])
+  @@map("reviews")
+}
+
+model Dispute {
+  id          Int           @id @default(autoincrement())
+  orderId     Int           @map("order_id")
+  initiatorId Int           @map("initiator_id")
+  reason      String?       @db.VarChar(255)
+  description String?       @db.Text
+  status      DisputeStatus @default(OPEN)
+  adminId     Int?          @map("admin_id")
+  resolution  String?       @db.Text
+  createdAt   DateTime      @default(now()) @map("created_at")
+  resolvedAt  DateTime?     @map("resolved_at")
+
+  @@map("disputes")
+}
+
+model Notification {
+  id          Int              @id @default(autoincrement())
+  userId      Int              @map("user_id")
+  type        NotificationType
+  title       String           @db.VarChar(255)
+  content     String?          @db.Text
+  referenceId Int?             @map("reference_id")
+  isRead      Boolean          @default(false) @map("is_read")
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
