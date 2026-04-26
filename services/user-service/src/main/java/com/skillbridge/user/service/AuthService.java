@@ -1,7 +1,9 @@
 package com.skillbridge.user.service;
 
+import com.skillbridge.user.dto.AuthResponse;
 import com.skillbridge.user.dto.LoginRequest;
 import com.skillbridge.user.dto.RegisterRequest;
+import com.skillbridge.user.mapper.UserMapper;
 import com.skillbridge.user.model.RefreshToken;
 import com.skillbridge.user.model.User;
 import com.skillbridge.user.model.UserRole;
@@ -35,7 +37,7 @@ public class AuthService {
     }
 
     @Transactional
-    public Map<String, Object> register(RegisterRequest request) {
+    public AuthResponse register(RegisterRequest request) {
         if (userRepository.findByEmailOrUsername(request.getEmail(), request.getUsername()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "User with this email or username already exists");
         }
@@ -53,7 +55,7 @@ public class AuthService {
     }
 
     @Transactional
-    public Map<String, Object> login(LoginRequest request) {
+    public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
 
@@ -107,23 +109,12 @@ public class AuthService {
         }
     }
 
-    private Map<String, Object> buildAuthResponse(User user) {
+    private AuthResponse buildAuthResponse(User user) {
         String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
         String refreshToken = jwtService.generateRefreshToken(user.getId());
         saveRefreshToken(user, refreshToken);
 
-        Map<String, Object> userMap = new HashMap<>();
-        userMap.put("id", user.getId());
-        userMap.put("username", user.getUsername());
-        userMap.put("email", user.getEmail());
-        userMap.put("role", user.getRole().name());
-        userMap.put("profilePicture", user.getProfilePicture());
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("accessToken", accessToken);
-        result.put("refreshToken", refreshToken);
-        result.put("user", userMap);
-        return result;
+        return new AuthResponse(accessToken, refreshToken, UserMapper.toSummary(user));
     }
 
     private void saveRefreshToken(User user, String token) {

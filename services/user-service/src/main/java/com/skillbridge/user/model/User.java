@@ -2,6 +2,8 @@ package com.skillbridge.user.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +59,7 @@ public class User {
     private List<RefreshToken> refreshTokens = new ArrayList<>();
 
     @ManyToMany
+    @BatchSize(size = 20)
     @JoinTable(
         name = "user_skills", schema = "users",
         joinColumns = @JoinColumn(name = "user_id"),
@@ -65,6 +68,7 @@ public class User {
     private List<Skill> skills = new ArrayList<>();
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 20)
     private List<PortfolioItem> portfolioItems = new ArrayList<>();
 
     @PreUpdate

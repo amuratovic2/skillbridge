@@ -1,11 +1,16 @@
 package com.skillbridge.user.service;
 
+import com.skillbridge.user.dto.CreatePortfolioItemRequest;
+import com.skillbridge.user.dto.PortfolioItemResponse;
+import com.skillbridge.user.dto.UpdatePortfolioItemRequest;
+import com.skillbridge.user.mapper.UserMapper;
 import com.skillbridge.user.model.PortfolioItem;
 import com.skillbridge.user.model.User;
 import com.skillbridge.user.repository.PortfolioItemRepository;
 import com.skillbridge.user.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -22,29 +27,35 @@ public class PortfolioService {
         this.userRepository = userRepository;
     }
 
-    public List<PortfolioItem> findByUserId(Integer userId) {
-        return portfolioItemRepository.findByUser_IdOrderByCreatedAtDesc(userId);
+    @Transactional(readOnly = true)
+    public List<PortfolioItemResponse> findByUserId(Integer userId) {
+        return portfolioItemRepository.findByUser_IdOrderByCreatedAtDesc(userId).stream()
+            .map(UserMapper::toResponse)
+            .toList();
     }
 
-    public PortfolioItem create(Integer userId, Map<String, String> data) {
+    @Transactional
+    public PortfolioItemResponse create(Integer userId, CreatePortfolioItemRequest data) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         PortfolioItem item = new PortfolioItem();
         item.setUser(user);
-        item.setTitle(data.get("title"));
-        item.setDescription(data.get("description"));
-        item.setImageUrl(data.get("imageUrl"));
-        return portfolioItemRepository.save(item);
+        item.setTitle(data.title().trim());
+        item.setDescription(data.description());
+        item.setImageUrl(data.imageUrl());
+        return UserMapper.toResponse(portfolioItemRepository.save(item));
     }
 
-    public PortfolioItem update(Integer id, Integer userId, Map<String, String> data) {
+    @Transactional
+    public PortfolioItemResponse update(Integer id, Integer userId, UpdatePortfolioItemRequest data) {
         PortfolioItem item = findAndVerify(id, userId);
-        if (data.containsKey("title")) item.setTitle(data.get("title"));
-        if (data.containsKey("description")) item.setDescription(data.get("description"));
-        if (data.containsKey("imageUrl")) item.setImageUrl(data.get("imageUrl"));
-        return portfolioItemRepository.save(item);
+        if (data.title() != null) item.setTitle(data.title().trim());
+        if (data.description() != null) item.setDescription(data.description());
+        if (data.imageUrl() != null) item.setImageUrl(data.imageUrl());
+        return UserMapper.toResponse(portfolioItemRepository.save(item));
     }
 
+    @Transactional
     public Map<String, String> delete(Integer id, Integer userId) {
         PortfolioItem item = findAndVerify(id, userId);
         portfolioItemRepository.delete(item);

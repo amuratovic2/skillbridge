@@ -2,12 +2,12 @@ package com.skillbridge.user.controller;
 
 import com.skillbridge.user.dto.ApiResponse;
 import com.skillbridge.user.dto.LoginRequest;
+import com.skillbridge.user.dto.RefreshTokenRequest;
 import com.skillbridge.user.dto.RegisterRequest;
+import com.skillbridge.user.dto.TokenRequest;
 import com.skillbridge.user.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
@@ -30,17 +30,17 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ApiResponse<?> refresh(@RequestBody Map<String, String> body) {
-        return ApiResponse.ok(authService.refresh(body.get("refreshToken")));
+    public ApiResponse<?> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        return ApiResponse.ok(authService.refresh(request.refreshToken()));
     }
 
     @PostMapping("/logout")
-    public ApiResponse<?> logout(@RequestBody Map<String, String> body) {
-        return ApiResponse.ok(authService.logout(body.get("refreshToken")));
+    public ApiResponse<?> logout(@Valid @RequestBody RefreshTokenRequest request) {
+        return ApiResponse.ok(authService.logout(request.refreshToken()));
     }
 
     @PostMapping("/validate")
-    public ApiResponse<?> validate(@RequestBody Map<String, String> body) {
-        return ApiResponse.ok(authService.validateToken(body.get("token")));
+    public ApiResponse<?> validate(@Valid @RequestBody TokenRequest request) {
+        return ApiResponse.ok(authService.validateToken(request.token()));
     }
 }

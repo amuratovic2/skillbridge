@@ -1,10 +1,11 @@
 package com.skillbridge.user.controller;
 
 import com.skillbridge.user.dto.ApiResponse;
+import com.skillbridge.user.dto.CreatePortfolioItemRequest;
+import com.skillbridge.user.dto.UpdatePortfolioItemRequest;
 import com.skillbridge.user.service.PortfolioService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/portfolios")
@@ -24,18 +25,18 @@ public class PortfolioController {
     @PostMapping
     public ApiResponse<?> create(
         @RequestHeader("x-user-id") Integer userId,
-        @RequestBody Map<String, String> body
+        @Valid @RequestBody CreatePortfolioItemRequest request
     ) {
-        return ApiResponse.ok(portfolioService.create(userId, body));
+        return ApiResponse.ok(portfolioService.create(userId, request));
     }
 
     @PatchMapping("/{id}")
     public ApiResponse<?> update(
         @PathVariable Integer id,
         @RequestHeader("x-user-id") Integer userId,
-        @RequestBody Map<String, String> body
+        @Valid @RequestBody UpdatePortfolioItemRequest request
     ) {
-        return ApiResponse.ok(portfolioService.update(id, userId, body));
+        return ApiResponse.ok(portfolioService.update(id, userId, request));
     }
 
     @DeleteMapping("/{id}")

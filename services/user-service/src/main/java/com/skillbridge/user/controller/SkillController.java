@@ -1,10 +1,10 @@
 package com.skillbridge.user.controller;
 
 import com.skillbridge.user.dto.ApiResponse;
+import com.skillbridge.user.dto.CreateSkillRequest;
 import com.skillbridge.user.service.SkillService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/skills")
@@ -22,8 +22,8 @@ public class SkillController {
     }
 
     @PostMapping
-    public ApiResponse<?> create(@RequestBody Map<String, String> body) {
-        return ApiResponse.ok(skillService.create(body.get("name")));
+    public ApiResponse<?> create(@Valid @RequestBody CreateSkillRequest request) {
+        return ApiResponse.ok(skillService.create(request));
     }
 
     @GetMapping("/user/{userId}")

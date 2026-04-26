@@ -1,5 +1,8 @@
 package com.skillbridge.user.service;
 
+import com.skillbridge.user.dto.CreateSkillRequest;
+import com.skillbridge.user.dto.SkillResponse;
+import com.skillbridge.user.mapper.UserMapper;
 import com.skillbridge.user.model.Skill;
 import com.skillbridge.user.model.User;
 import com.skillbridge.user.repository.SkillRepository;
@@ -23,23 +26,27 @@ public class SkillService {
         this.userRepository = userRepository;
     }
 
-    public List<Skill> findAll() {
-        return skillRepository.findAll();
+    @Transactional(readOnly = true)
+    public List<SkillResponse> findAll() {
+        return skillRepository.findAll().stream().map(UserMapper::toResponse).toList();
     }
 
-    public Skill create(String name) {
+    @Transactional
+    public SkillResponse create(CreateSkillRequest request) {
+        String name = request.name().trim();
         if (skillRepository.findByName(name).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Skill already exists");
         }
         Skill skill = new Skill();
         skill.setName(name);
-        return skillRepository.save(skill);
+        return UserMapper.toResponse(skillRepository.save(skill));
     }
 
-    public List<Skill> getUserSkills(Integer userId) {
-        User user = userRepository.findById(userId)
+    @Transactional(readOnly = true)
+    public List<SkillResponse> getUserSkills(Integer userId) {
+        User user = userRepository.findWithSkillsById(userId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        return user.getSkills();
+        return user.getSkills().stream().map(UserMapper::toResponse).toList();
     }
 
     @Transactional
