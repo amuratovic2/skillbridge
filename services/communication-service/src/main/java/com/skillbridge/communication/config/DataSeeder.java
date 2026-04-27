@@ -3,11 +3,13 @@ package com.skillbridge.communication.config;
 import com.skillbridge.communication.model.*;
 import com.skillbridge.communication.repository.*;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
 @Component
+@Profile("!test")
 public class DataSeeder implements CommandLineRunner {
 
     private final MessageRepository messageRepository;
