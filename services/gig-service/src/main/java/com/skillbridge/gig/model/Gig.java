@@ -1,6 +1,7 @@
 package com.skillbridge.gig.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -61,6 +62,7 @@ public class Gig {
     private Category category;
 
     @ManyToMany(fetch = FetchType.LAZY)
+    @BatchSize(size = 20)
     @JoinTable(
         name = "gig_tags", schema = "gigs",
         joinColumns = @JoinColumn(name = "gig_id"),
@@ -69,6 +71,7 @@ public class Gig {
     private List<Tag> tags = new ArrayList<>();
 
     @OneToMany(mappedBy = "gig", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 20)
     @OrderBy("sortOrder ASC")
     private List<GigImage> images = new ArrayList<>();
 

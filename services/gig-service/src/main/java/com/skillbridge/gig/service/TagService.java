@@ -1,12 +1,13 @@
 package com.skillbridge.gig.service;
 
+import com.skillbridge.gig.dto.PopularTagResponse;
+import com.skillbridge.gig.dto.TagResponse;
+import com.skillbridge.gig.mapper.GigMapper;
 import com.skillbridge.gig.model.Tag;
 import com.skillbridge.gig.repository.TagRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class TagService {
@@ -17,20 +18,20 @@ public class TagService {
         this.tagRepository = tagRepository;
     }
 
-    public List<Tag> findAll() {
-        return tagRepository.findAllByOrderByNameAsc();
+    public List<TagResponse> findAll() {
+        return tagRepository.findAllByOrderByNameAsc().stream()
+            .map(GigMapper::toResponse)
+            .toList();
     }
 
-    public List<Map<String, Object>> findPopular(int limit) {
+    public List<PopularTagResponse> findPopular(int limit) {
         return tagRepository.findPopularRaw(limit).stream()
-            .map(row -> {
-                Map<String, Object> map = new LinkedHashMap<>();
-                map.put("id", row[0]);
-                map.put("name", row[1]);
-                map.put("slug", row[2]);
-                map.put("gigCount", ((Number) row[3]).longValue());
-                return map;
-            })
+            .map(row -> new PopularTagResponse(
+                ((Number) row[0]).intValue(),
+                (String) row[1],
+                (String) row[2],
+                ((Number) row[3]).longValue()
+            ))
             .toList();
     }
 }
