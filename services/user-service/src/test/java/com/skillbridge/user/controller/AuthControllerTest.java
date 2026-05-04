@@ -1,8 +1,10 @@
 package com.skillbridge.user.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.skillbridge.user.model.User;
 import com.skillbridge.user.model.UserRole;
+import com.skillbridge.user.repository.RefreshTokenRepository;
 import com.skillbridge.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.Map;
 
@@ -37,10 +40,14 @@ class AuthControllerTest {
     private UserRepository userRepository;
 
     @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @BeforeEach
     void setUp() {
+        refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
     }
 
@@ -102,5 +109,81 @@ class AuthControllerTest {
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error").value("unauthorized"))
             .andExpect(jsonPath("$.message").value("Invalid credentials"));
+    }
+
+    @Test
+    void refreshRotatesRefreshToken() throws Exception {
+        JsonNode registerResponse = registerUser("refresh.user", "refresh@example.com");
+        String refreshToken = registerResponse.at("/data/refreshToken").asText();
+
+        mockMvc.perform(post("/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("refreshToken", refreshToken))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.accessToken", notNullValue()))
+            .andExpect(jsonPath("$.data.refreshToken", notNullValue()));
+    }
+
+    @Test
+    void logoutInvalidatesRefreshToken() throws Exception {
+        JsonNode registerResponse = registerUser("logout.user", "logout@example.com");
+        String refreshToken = registerResponse.at("/data/refreshToken").asText();
+
+        mockMvc.perform(post("/auth/logout")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("refreshToken", refreshToken))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.message").value("Logged out successfully"));
+
+        mockMvc.perform(post("/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("refreshToken", refreshToken))))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void validateReturnsTokenClaimsForValidAccessToken() throws Exception {
+        JsonNode registerResponse = registerUser("validate.user", "validate@example.com");
+        String accessToken = registerResponse.at("/data/accessToken").asText();
+
+        mockMvc.perform(post("/auth/validate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("token", accessToken))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.email").value("validate@example.com"))
+            .andExpect(jsonPath("$.data.role").value("CLIENT"));
+    }
+
+    @Test
+    void validateRejectsInvalidToken() throws Exception {
+        mockMvc.perform(post("/auth/validate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("token", "not-a-token"))))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("unauthorized"));
+    }
+
+    private JsonNode registerUser(String username, String email) throws Exception {
+        Map<String, String> body = Map.of(
+            "username", username,
+            "email", email,
+            "password", "password123",
+            "role", "CLIENT",
+            "firstName", "Test",
+            "lastName", "User"
+        );
+
+        MvcResult result = mockMvc.perform(post("/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+            .andExpect(status().isOk())
+            .andReturn();
+
+        return objectMapper.readTree(result.getResponse().getContentAsString());
     }
 }

@@ -10,6 +10,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class JwtService {
@@ -36,6 +37,7 @@ public class JwtService {
 
     public String generateAccessToken(Integer userId, String email, String role) {
         return Jwts.builder()
+            .id(UUID.randomUUID().toString())
             .subject(String.valueOf(userId))
             .claims(Map.of("email", email, "role", role))
             .issuedAt(new Date())
@@ -46,6 +48,7 @@ public class JwtService {
 
     public String generateRefreshToken(Integer userId) {
         return Jwts.builder()
+            .id(UUID.randomUUID().toString())
             .subject(String.valueOf(userId))
             .claim("type", "refresh")
             .issuedAt(new Date())

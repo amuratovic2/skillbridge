@@ -1,5 +1,6 @@
 package com.skillbridge.user.service;
 
+import com.skillbridge.user.dto.BatchCreatePortfolioItemsRequest;
 import com.skillbridge.user.dto.CreatePortfolioItemRequest;
 import com.skillbridge.user.dto.PortfolioItemResponse;
 import com.skillbridge.user.dto.UpdatePortfolioItemRequest;
@@ -29,7 +30,7 @@ public class PortfolioService {
 
     @Transactional(readOnly = true)
     public List<PortfolioItemResponse> findByUserId(Integer userId) {
-        return portfolioItemRepository.findByUser_IdOrderByCreatedAtDesc(userId).stream()
+        return portfolioItemRepository.findForActiveUser(userId).stream()
             .map(UserMapper::toResponse)
             .toList();
     }
@@ -44,6 +45,27 @@ public class PortfolioService {
         item.setDescription(data.description());
         item.setImageUrl(data.imageUrl());
         return UserMapper.toResponse(portfolioItemRepository.save(item));
+    }
+
+    @Transactional
+    public List<PortfolioItemResponse> createBatch(Integer userId, BatchCreatePortfolioItemsRequest request) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        List<PortfolioItem> items = request.items().stream()
+            .map(data -> {
+                PortfolioItem item = new PortfolioItem();
+                item.setUser(user);
+                item.setTitle(data.title().trim());
+                item.setDescription(data.description());
+                item.setImageUrl(data.imageUrl());
+                return item;
+            })
+            .toList();
+
+        return portfolioItemRepository.saveAll(items).stream()
+            .map(UserMapper::toResponse)
+            .toList();
     }
 
     @Transactional

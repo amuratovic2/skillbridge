@@ -1,7 +1,9 @@
 package com.skillbridge.user.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.Getter;
 
+@Getter
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ApiResponse<T> {
     private boolean success;
@@ -35,9 +37,4 @@ public class ApiResponse<T> {
         return r;
     }
 
-    public boolean isSuccess() { return success; }
-    public T getData() { return data; }
-    public String getError() { return error; }
-    public String getMessage() { return message; }
-    public Object getMeta() { return meta; }
 }
