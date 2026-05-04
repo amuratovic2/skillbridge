@@ -4,7 +4,10 @@ import com.skillbridge.communication.model.Review;
 import com.skillbridge.communication.repository.ReviewRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -21,9 +24,13 @@ public class ReviewService {
         this.reviewRepository = reviewRepository;
     }
 
+    @Transactional
     public Review create(Integer reviewerId, Integer orderId, Integer revieweeId, int rating, String comment) {
+        if (reviewerId.equals(revieweeId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot review yourself");
+        }
         if (rating < 1 || rating > 5) {
-            throw new IllegalArgumentException("Rating must be between 1 and 5");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rating must be between 1 and 5");
         }
 
         Review review = new Review();
@@ -56,13 +63,14 @@ public class ReviewService {
 
     public Map<String, Object> getAverageRating(Integer revieweeId) {
         Object[] result = reviewRepository.getAverageRating(revieweeId);
+        Object[] row = normalizeAggregateRow(result);
 
         double avg = 0.0;
         long count = 0;
 
-        if (result != null && result.length >= 2) {
-            if (result[0] != null) avg = ((Number) result[0]).doubleValue();
-            if (result[1] != null) count = ((Number) result[1]).longValue();
+        if (row != null && row.length >= 2) {
+            if (row[0] != null) avg = ((Number) row[0]).doubleValue();
+            if (row[1] != null) count = ((Number) row[1]).longValue();
         }
 
         double rounded = BigDecimal.valueOf(avg)
@@ -73,5 +81,12 @@ public class ReviewService {
             "averageRating", rounded,
             "totalReviews", count
         );
+    }
+
+    private Object[] normalizeAggregateRow(Object[] result) {
+        if (result != null && result.length == 1 && result[0] instanceof Object[] nested) {
+            return nested;
+        }
+        return result;
     }
 }
