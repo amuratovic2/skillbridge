@@ -20,7 +20,9 @@ import java.math.BigDecimal;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -130,6 +132,129 @@ class GigControllerTest {
     }
 
     @Test
+    void searchRejectsInvalidPriceRange() throws Exception {
+        mockMvc.perform(get("/gigs/search")
+                .param("minPrice", "500")
+                .param("maxPrice", "100"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("bad_request"))
+            .andExpect(jsonPath("$.message").value("minPrice must be less than or equal to maxPrice"));
+    }
+
+    @Test
+    void getFeaturedReturnsGigs() throws Exception {
+        createGig(5, "Featured Gig 1", new BigDecimal("100.00"));
+        createGig(6, "Featured Gig 2", new BigDecimal("200.00"));
+
+        mockMvc.perform(get("/gigs/featured")
+                .param("limit", "6"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data", hasSize(2)));
+    }
+
+    @Test
+    void findByFreelancerReturnsGigs() throws Exception {
+        createGig(5, "Freelancer Gig 1", new BigDecimal("150.00"));
+        createGig(5, "Freelancer Gig 2", new BigDecimal("250.00"));
+        createGig(6, "Other Gig", new BigDecimal("300.00"));
+
+        mockMvc.perform(get("/gigs/freelancer/5"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data", hasSize(2)));
+    }
+
+    @Test
+    void findByIdReturnsGig() throws Exception {
+        Gig gig = createGig(5, "Test Gig", new BigDecimal("100.00"));
+
+        mockMvc.perform(get("/gigs/" + gig.getId()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.id").value(gig.getId()))
+            .andExpect(jsonPath("$.data.title").value("Test Gig"));
+    }
+
+    @Test
+    void findByIdReturnsNotFoundForInvalidId() throws Exception {
+        mockMvc.perform(get("/gigs/999"))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("not_found"));
+    }
+
+    @Test
+    void findByIdReturnsNotFoundForDeletedGig() throws Exception {
+        Gig gig = createGig(5, "Deleted Gig", new BigDecimal("100.00"));
+        gig.setStatus(GigStatus.DELETED);
+        gigRepository.save(gig);
+
+        mockMvc.perform(get("/gigs/" + gig.getId()))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("not_found"));
+    }
+
+    @Test
+    void updateUpdatesGigForValidRequest() throws Exception {
+        Gig gig = createGig(5, "Original Title", new BigDecimal("100.00"));
+        Map<String, Object> body = Map.of("title", "Updated Title");
+
+        mockMvc.perform(patch("/gigs/" + gig.getId())
+                .header("x-user-id", 5)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data.title").value("Updated Title"));
+    }
+
+    @Test
+    void updateReturnsNotFoundForInvalidId() throws Exception {
+        Map<String, Object> body = Map.of("title", "Updated Title");
+
+        mockMvc.perform(patch("/gigs/999")
+                .header("x-user-id", 5)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("not_found"));
+    }
+
+    @Test
+    void updateReturnsValidationErrorForInvalidData() throws Exception {
+        Gig gig = createGig(5, "Test Gig", new BigDecimal("100.00"));
+        Map<String, Object> body = Map.of("cost", -10.0);
+
+        mockMvc.perform(patch("/gigs/" + gig.getId())
+                .header("x-user-id", 5)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("validation"));
+    }
+
+    @Test
+    void updateReturnsNotFoundForDeletedGig() throws Exception {
+        Gig gig = createGig(5, "Deleted Gig", new BigDecimal("100.00"));
+        gig.setStatus(GigStatus.DELETED);
+        gigRepository.save(gig);
+        Map<String, Object> body = Map.of("title", "Updated title");
+
+        mockMvc.perform(patch("/gigs/" + gig.getId())
+                .header("x-user-id", 5)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body)))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("not_found"));
+    }
+
+    @Test
     void updateRejectsDifferentFreelancer() throws Exception {
         Gig gig = createGig(5, "Spring Boot API", new BigDecimal("250.00"));
         Map<String, Object> body = Map.of("title", "Updated title");
@@ -142,6 +267,49 @@ class GigControllerTest {
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error").value("forbidden"))
             .andExpect(jsonPath("$.message").value("You can only edit your own gigs"));
+    }
+
+    @Test
+    void deleteDeletesGig() throws Exception {
+        Gig gig = createGig(5, "Gig to Delete", new BigDecimal("100.00"));
+
+        mockMvc.perform(delete("/gigs/" + gig.getId())
+                .header("x-user-id", 5))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void deleteReturnsNotFoundForInvalidId() throws Exception {
+        mockMvc.perform(delete("/gigs/999")
+                .header("x-user-id", 5))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("not_found"));
+    }
+
+    @Test
+    void deleteReturnsNotFoundForAlreadyDeletedGig() throws Exception {
+        Gig gig = createGig(5, "Deleted Gig", new BigDecimal("100.00"));
+        gig.setStatus(GigStatus.DELETED);
+        gigRepository.save(gig);
+
+        mockMvc.perform(delete("/gigs/" + gig.getId())
+                .header("x-user-id", 5))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("not_found"));
+    }
+
+    @Test
+    void deleteRejectsDifferentFreelancer() throws Exception {
+        Gig gig = createGig(5, "Gig to Delete", new BigDecimal("100.00"));
+
+        mockMvc.perform(delete("/gigs/" + gig.getId())
+                .header("x-user-id", 99))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("forbidden"));
     }
 
     private Gig createGig(Integer freelancerId, String title, BigDecimal cost) {

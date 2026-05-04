@@ -23,6 +23,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,6 +75,9 @@ public class GigService {
     public Gig findEntityById(Integer id) {
         Gig gig = gigRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gig not found"));
+        if (gig.getStatus() == GigStatus.DELETED) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Gig not found");
+        }
         gig.getTags().size();
         gig.getImages().size();
         return gig;
@@ -83,6 +87,10 @@ public class GigService {
     public GigResponse update(Integer id, Integer freelancerId, UpdateGigRequest req) {
         Gig gig = gigRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gig not found"));
+
+        if (gig.getStatus() == GigStatus.DELETED) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Gig not found");
+        }
 
         if (!gig.getFreelancerId().equals(freelancerId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only edit your own gigs");
@@ -115,6 +123,10 @@ public class GigService {
         Gig gig = gigRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gig not found"));
 
+        if (gig.getStatus() == GigStatus.DELETED) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Gig not found");
+        }
+
         if (!gig.getFreelancerId().equals(freelancerId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only delete your own gigs");
         }
@@ -128,6 +140,10 @@ public class GigService {
     public PageResponse<List<GigResponse>> search(String q, Integer categoryId, BigDecimal minPrice,
                                                   BigDecimal maxPrice, Integer deliveryTime,
                                                   String sortBy, int page, int limit) {
+        if (minPrice != null && maxPrice != null && minPrice.compareTo(maxPrice) > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "minPrice must be less than or equal to maxPrice");
+        }
+
         Specification<Gig> spec = (root, query, cb) -> cb.equal(root.get("status"), GigStatus.ACTIVE);
 
         if (q != null && !q.isBlank()) {
@@ -202,7 +218,7 @@ public class GigService {
     private void syncTags(Gig gig, List<String> tagNames) {
         gig.getTags().clear();
         List<Tag> resolved = new ArrayList<>();
-        for (String name : tagNames) {
+        for (String name : new LinkedHashSet<>(tagNames)) {
             String slug = name.toLowerCase().replaceAll("\\s+", "-");
             Tag tag = tagRepository.findBySlug(slug)
                 .orElseGet(() -> tagRepository.save(new Tag(name, slug)));

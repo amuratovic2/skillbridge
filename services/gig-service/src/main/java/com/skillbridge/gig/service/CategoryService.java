@@ -4,6 +4,7 @@ import com.skillbridge.gig.dto.CategoryResponse;
 import com.skillbridge.gig.mapper.GigMapper;
 import com.skillbridge.gig.model.Category;
 import com.skillbridge.gig.repository.CategoryRepository;
+import com.skillbridge.gig.repository.GigRepository;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -17,9 +18,11 @@ import java.util.Map;
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final GigRepository gigRepository;
 
-    public CategoryService(CategoryRepository categoryRepository) {
+    public CategoryService(CategoryRepository categoryRepository, GigRepository gigRepository) {
         this.categoryRepository = categoryRepository;
+        this.gigRepository = gigRepository;
     }
 
     public List<CategoryResponse> findAll() {
@@ -56,6 +59,9 @@ public class CategoryService {
     public Map<String, String> delete(Integer id) {
         Category category = categoryRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
+        if (gigRepository.existsByCategoryId(id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Category has gigs and cannot be deleted");
+        }
         categoryRepository.delete(category);
         return Map.of("message", "Category deleted successfully");
     }
