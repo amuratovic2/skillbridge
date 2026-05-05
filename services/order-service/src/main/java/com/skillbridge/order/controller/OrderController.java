@@ -1,12 +1,23 @@
 package com.skillbridge.order.controller;
 
+import java.util.Map;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.skillbridge.order.dto.ApiResponse;
+import com.skillbridge.order.dto.CreateOrderRequest;
 import com.skillbridge.order.model.OrderStatus;
 import com.skillbridge.order.service.OrderService;
-import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.util.Map;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/orders")
@@ -21,13 +32,17 @@ public class OrderController {
     @PostMapping
     public ApiResponse<?> create(
         @RequestHeader("x-user-id") Integer userId,
-        @RequestBody Map<String, Object> body
+        @Valid @RequestBody CreateOrderRequest request
     ) {
-        Integer gigId = (Integer) body.get("gigId");
-        BigDecimal totalCost = new BigDecimal(body.get("totalCost").toString());
-        int maxRevisions = (Integer) body.get("maxRevisions");
-        int deliveryDays = (Integer) body.get("deliveryDays");
-        return ApiResponse.ok(orderService.create(userId, gigId, totalCost, maxRevisions, deliveryDays));
+        return ApiResponse.ok(
+            orderService.create(
+                userId,
+                request.getGigId(),
+                request.getTotalCost(),
+                request.getMaxRevisions(),
+                request.getDeliveryDays()
+            )
+        );
     }
 
     @GetMapping("/my/buying")

@@ -1,0 +1,45 @@
+package com.skillbridge.order.controller;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.skillbridge.order.dto.CreateDeliveryRequest;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.*;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@WebMvcTest
+class DeliveryControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Test
+    void createDelivery_success() throws Exception {
+        CreateDeliveryRequest request = new CreateDeliveryRequest();
+        request.setMessage("Test delivery");
+
+        mockMvc.perform(post("/deliveries/order/1")
+                .header("x-user-id", 1)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void createDelivery_validationFail() throws Exception {
+        CreateDeliveryRequest request = new CreateDeliveryRequest();
+
+        mockMvc.perform(post("/deliveries/order/1")
+                .header("x-user-id", 1)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+}

@@ -2,17 +2,30 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "type": "java",
+      "name": "OrderServiceApplication",
+      "request": "launch",
+      "mainClass": "com.skillbridge.order.OrderServiceApplication",
+      "projectName": "order-service"
+    },
+    {
       "type": "node",
       "request": "launch",
       "name": "Debug api-gateway with Nx",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["nx", "serve", "api-gateway"],
+      "runtimeArgs": [
+        "nx",
+        "serve",
+        "api-gateway"
+      ],
       "env": {
         "NODE_OPTIONS": "--inspect=9229"
       },
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
-      "skipFiles": ["<node_internals>/**"],
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
       "sourceMaps": true,
       "outFiles": [
         "${workspaceFolder}/apps/api-gateway/dist/**/*.(m|c|)js",
@@ -24,13 +37,19 @@
       "request": "launch",
       "name": "Debug user-service with Nx",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["nx", "serve", "user-service"],
+      "runtimeArgs": [
+        "nx",
+        "serve",
+        "user-service"
+      ],
       "env": {
         "NODE_OPTIONS": "--inspect=9230"
       },
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
-      "skipFiles": ["<node_internals>/**"],
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
       "sourceMaps": true,
       "outFiles": [
         "${workspaceFolder}/apps/user-service/dist/**/*.(m|c|)js",
@@ -42,13 +61,19 @@
       "request": "launch",
       "name": "Debug gig-service with Nx",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["nx", "serve", "gig-service"],
+      "runtimeArgs": [
+        "nx",
+        "serve",
+        "gig-service"
+      ],
       "env": {
         "NODE_OPTIONS": "--inspect=9231"
       },
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
-      "skipFiles": ["<node_internals>/**"],
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
       "sourceMaps": true,
       "outFiles": [
         "${workspaceFolder}/apps/gig-service/dist/**/*.(m|c|)js",
@@ -60,13 +85,19 @@
       "request": "launch",
       "name": "Debug order-service with Nx",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["nx", "serve", "order-service"],
+      "runtimeArgs": [
+        "nx",
+        "serve",
+        "order-service"
+      ],
       "env": {
         "NODE_OPTIONS": "--inspect=9232"
       },
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
-      "skipFiles": ["<node_internals>/**"],
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
       "sourceMaps": true,
       "outFiles": [
         "${workspaceFolder}/apps/order-service/dist/**/*.(m|c|)js",
@@ -78,13 +109,19 @@
       "request": "launch",
       "name": "Debug communication-service with Nx",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["nx", "serve", "communication-service"],
+      "runtimeArgs": [
+        "nx",
+        "serve",
+        "communication-service"
+      ],
       "env": {
         "NODE_OPTIONS": "--inspect=9233"
       },
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
-      "skipFiles": ["<node_internals>/**"],
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
       "sourceMaps": true,
       "outFiles": [
         "${workspaceFolder}/apps/communication-service/dist/**/*.(m|c|)js",

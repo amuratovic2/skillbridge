@@ -1,0 +1,22 @@
+package com.skillbridge.order.service;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.math.BigDecimal;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@SpringBootTest
+class OrderServiceTest {
+
+    @Autowired
+    private OrderService orderService;
+
+    @Test
+    void createOrder_success() {
+        var result = orderService.create(1, 1, new BigDecimal("100"), 2, 5);
+        assertNotNull(result);
+    }
+}

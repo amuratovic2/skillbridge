@@ -1,0 +1,28 @@
+package com.skillbridge.order.service;
+
+import com.skillbridge.order.model.CustomOffer;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import java.math.BigDecimal;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@SpringBootTest
+class CustomOfferServiceTest {
+
+    @Autowired
+    private CustomOfferService service;
+
+    @Test
+    void createCustomOffer_success() {
+        CustomOffer offer = new CustomOffer();
+        offer.setReceiverId(2);
+        offer.setTitle("Test");
+        offer.setPrice(new BigDecimal("50"));
+
+        var result = service.create(1, offer);
+        assertNotNull(result);
+    }
+}

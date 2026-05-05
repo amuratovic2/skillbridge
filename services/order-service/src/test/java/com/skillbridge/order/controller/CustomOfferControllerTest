@@ -1,0 +1,47 @@
+package com.skillbridge.order.controller;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.skillbridge.order.dto.CreateCustomOfferRequest;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.*;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@WebMvcTest
+class CustomOfferControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Test
+    void createCustomOffer_success() throws Exception {
+        CreateCustomOfferRequest request = new CreateCustomOfferRequest();
+        request.setReceiverId(2);
+        request.setTitle("Test");
+        request.setPrice(new java.math.BigDecimal("50"));
+
+        mockMvc.perform(post("/custom-offers")
+                .header("x-user-id", 1)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void createCustomOffer_validationFail() throws Exception {
+        CreateCustomOfferRequest request = new CreateCustomOfferRequest();
+
+        mockMvc.perform(post("/custom-offers")
+                .header("x-user-id", 1)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+}

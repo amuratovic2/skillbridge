@@ -1,12 +1,20 @@
 package com.skillbridge.order.controller;
 
-import com.skillbridge.order.dto.ApiResponse;
-import com.skillbridge.order.service.DeliveryService;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.Map;
+import com.skillbridge.order.dto.ApiResponse;
+import com.skillbridge.order.dto.CreateDeliveryRequest;
+import com.skillbridge.order.service.DeliveryService;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/deliveries")
@@ -22,14 +30,17 @@ public class DeliveryController {
     public ApiResponse<?> create(
         @PathVariable Long orderId,
         @RequestHeader("x-user-id") Integer userId,
-        @RequestBody Map<String, String> body
+        @Valid @RequestBody CreateDeliveryRequest request
     ) {
-        return ApiResponse.ok(deliveryService.create(
-            orderId, userId,
-            body.get("message"),
-            body.get("fileUrl"),
-            body.get("fileName")
-        ));
+        return ApiResponse.ok(
+            deliveryService.create(
+                orderId,
+                userId,
+                request.getMessage(),
+                request.getFileUrl(),
+                request.getFileName()
+            )
+        );
     }
 
     @GetMapping("/order/{orderId}")

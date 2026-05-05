@@ -1,13 +1,23 @@
 package com.skillbridge.order.controller;
 
+import java.util.Map;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.skillbridge.order.dto.ApiResponse;
+import com.skillbridge.order.dto.CreateCustomOfferRequest;
 import com.skillbridge.order.model.CustomOffer;
 import com.skillbridge.order.model.CustomOfferStatus;
 import com.skillbridge.order.service.CustomOfferService;
-import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.util.Map;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/custom-offers")
@@ -22,18 +32,18 @@ public class CustomOfferController {
     @PostMapping
     public ApiResponse<?> create(
         @RequestHeader("x-user-id") Integer userId,
-        @RequestBody Map<String, Object> body
+        @Valid @RequestBody CreateCustomOfferRequest request
     ) {
         CustomOffer offer = new CustomOffer();
-        if (body.get("gigId") != null) {
-            offer.setGigId((Integer) body.get("gigId"));
-        }
-        offer.setReceiverId((Integer) body.get("receiverId"));
-        offer.setTitle((String) body.get("title"));
-        offer.setDescription((String) body.get("description"));
-        offer.setPrice(new BigDecimal(body.get("price").toString()));
-        offer.setDeliveryDays((Integer) body.get("deliveryDays"));
-        offer.setRevisionCount((Integer) body.get("revisionCount"));
+
+        offer.setGigId(request.getGigId());
+        offer.setReceiverId(request.getReceiverId());
+        offer.setTitle(request.getTitle());
+        offer.setDescription(request.getDescription());
+        offer.setPrice(request.getPrice());
+        offer.setDeliveryDays(request.getDeliveryDays());
+        offer.setRevisionCount(request.getRevisionCount());
+
         return ApiResponse.ok(customOfferService.create(userId, offer));
     }
 

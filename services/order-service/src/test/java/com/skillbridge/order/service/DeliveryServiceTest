@@ -1,0 +1,27 @@
+package com.skillbridge.order.service;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@SpringBootTest
+class DeliveryServiceTest {
+
+    @Autowired
+    private DeliveryService service;
+
+    @Test
+    void createDelivery_success() {
+        var result = service.create(
+                1L,
+                1,
+                "Test message",
+                "fileUrl",
+                "fileName"
+        );
+
+        assertNotNull(result);
+    }
+}
