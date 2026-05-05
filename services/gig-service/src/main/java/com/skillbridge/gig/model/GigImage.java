@@ -2,9 +2,18 @@ package com.skillbridge.gig.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "gig_images", schema = "gigs")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class GigImage {
 
     @Id
@@ -21,18 +30,4 @@ public class GigImage {
     @JoinColumn(name = "gig_id")
     @JsonIgnore
     private Gig gig;
-
-    public GigImage() {}
-
-    public Integer getId() { return id; }
-    public void setId(Integer id) { this.id = id; }
-
-    public String getImageUrl() { return imageUrl; }
-    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
-
-    public Integer getSortOrder() { return sortOrder; }
-    public void setSortOrder(Integer sortOrder) { this.sortOrder = sortOrder; }
-
-    public Gig getGig() { return gig; }
-    public void setGig(Gig gig) { this.gig = gig; }
 }

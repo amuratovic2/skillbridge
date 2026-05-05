@@ -1,10 +1,13 @@
 package com.skillbridge.user.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.fge.jsonpatch.JsonPatch;
 import com.skillbridge.user.dto.UpdateUserRequest;
 import com.skillbridge.user.dto.UserResponse;
 import com.skillbridge.user.model.User;
 import com.skillbridge.user.model.UserRole;
 import com.skillbridge.user.repository.UserRepository;
+import jakarta.validation.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +29,9 @@ class UserServiceTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -55,6 +61,56 @@ class UserServiceTest {
         assertThat(response.firstName()).isEqualTo("Updated");
         assertThat(response.bio()).isEqualTo("New bio");
         assertThat(response.country()).isEqualTo("Bosna i Hercegovina");
+    }
+
+    @Test
+    void findAllAppliesSearchAndSortParameters() {
+        User second = new User();
+        second.setUsername("zzz.user");
+        second.setEmail("zzz@example.com");
+        second.setPasswordHash(passwordEncoder.encode("password123"));
+        second.setRole(UserRole.FREELANCER);
+        second.setCountry("Bosna i Hercegovina");
+        userRepository.save(second);
+
+        var response = userService.findAll(
+            1,
+            10,
+            "username",
+            "desc",
+            "user",
+            null,
+            "Bosna i Hercegovina",
+            null
+        );
+
+        assertThat(response.data()).extracting(UserResponse::username)
+            .containsExactly("zzz.user", "service.user");
+    }
+
+    @Test
+    void patchAppliesJsonPatchToAllowedProfileFields() throws Exception {
+        JsonPatch patch = JsonPatch.fromJson(objectMapper.readTree("""
+            [
+              {"op": "replace", "path": "/country", "value": "Germany"}
+            ]
+            """));
+
+        UserResponse response = userService.patch(user.getId(), patch);
+
+        assertThat(response.country()).isEqualTo("Germany");
+    }
+
+    @Test
+    void patchValidatesResultingProfile() throws Exception {
+        JsonPatch patch = JsonPatch.fromJson(objectMapper.readTree("""
+            [
+              {"op": "replace", "path": "/country", "value": "%s"}
+            ]
+            """.formatted("x".repeat(101))));
+
+        assertThatThrownBy(() -> userService.patch(user.getId(), patch))
+            .isInstanceOf(ConstraintViolationException.class);
     }
 
     @Test

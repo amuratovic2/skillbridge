@@ -1,9 +1,18 @@
 package com.skillbridge.gig.model;
 
 import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "tags", schema = "gigs")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class Tag {
 
     @Id
@@ -16,19 +25,8 @@ public class Tag {
     @Column(length = 100, nullable = false, unique = true)
     private String slug;
 
-    public Tag() {}
-
     public Tag(String name, String slug) {
         this.name = name;
         this.slug = slug;
     }
-
-    public Integer getId() { return id; }
-    public void setId(Integer id) { this.id = id; }
-
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-
-    public String getSlug() { return slug; }
-    public void setSlug(String slug) { this.slug = slug; }
 }

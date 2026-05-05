@@ -1,6 +1,7 @@
 package com.skillbridge.user.controller;
 
 import com.skillbridge.user.dto.ApiResponse;
+import com.skillbridge.user.dto.BatchCreatePortfolioItemsRequest;
 import com.skillbridge.user.dto.CreatePortfolioItemRequest;
 import com.skillbridge.user.dto.UpdatePortfolioItemRequest;
 import com.skillbridge.user.service.PortfolioService;
@@ -28,6 +29,14 @@ public class PortfolioController {
         @Valid @RequestBody CreatePortfolioItemRequest request
     ) {
         return ApiResponse.ok(portfolioService.create(userId, request));
+    }
+
+    @PostMapping("/batch")
+    public ApiResponse<?> createBatch(
+        @RequestHeader("x-user-id") Integer userId,
+        @Valid @RequestBody BatchCreatePortfolioItemsRequest request
+    ) {
+        return ApiResponse.ok(portfolioService.createBatch(userId, request));
     }
 
     @PatchMapping("/{id}")

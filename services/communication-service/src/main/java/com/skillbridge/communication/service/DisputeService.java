@@ -5,7 +5,10 @@ import com.skillbridge.communication.model.DisputeStatus;
 import com.skillbridge.communication.repository.DisputeRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,6 +23,7 @@ public class DisputeService {
         this.disputeRepository = disputeRepository;
     }
 
+    @Transactional
     public Dispute create(Integer initiatorId, Integer orderId, String reason, String description) {
         boolean activeExists = disputeRepository.existsByOrderIdAndStatusIn(
             orderId, List.of(DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW)
@@ -39,7 +43,7 @@ public class DisputeService {
 
     public Dispute findById(Integer id) {
         return disputeRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Dispute not found"));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Dispute not found"));
     }
 
     public Map<String, Object> findAll(DisputeStatus status, int page, int limit) {
@@ -61,6 +65,7 @@ public class DisputeService {
         );
     }
 
+    @Transactional
     public Dispute assign(Integer id, Integer adminId) {
         Dispute dispute = findById(id);
         if (dispute.getStatus() != DisputeStatus.OPEN) {
@@ -71,6 +76,7 @@ public class DisputeService {
         return disputeRepository.save(dispute);
     }
 
+    @Transactional
     public Dispute resolve(Integer id, Integer adminId, String resolution, DisputeStatus status) {
         Dispute dispute = findById(id);
         if (!adminId.equals(dispute.getAdminId())) {
@@ -78,6 +84,9 @@ public class DisputeService {
         }
         if (dispute.getStatus() != DisputeStatus.UNDER_REVIEW) {
             throw new IllegalStateException("Only UNDER_REVIEW disputes can be resolved");
+        }
+        if (!List.of(DisputeStatus.RESOLVED_BUYER, DisputeStatus.RESOLVED_SELLER, DisputeStatus.CLOSED).contains(status)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Resolution status must close the dispute");
         }
         dispute.setResolution(resolution);
         dispute.setStatus(status);

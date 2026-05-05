@@ -5,8 +5,10 @@ import com.skillbridge.communication.model.NotificationType;
 import com.skillbridge.communication.repository.NotificationRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -49,9 +51,9 @@ public class NotificationService {
 
     public Notification markAsRead(Integer id, Integer userId) {
         Notification notification = notificationRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Notification not found"));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Notification not found"));
         if (!notification.getUserId().equals(userId)) {
-            throw new IllegalStateException("Notification does not belong to this user");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Notification does not belong to this user");
         }
         notification.setIsRead(true);
         return notificationRepository.save(notification);

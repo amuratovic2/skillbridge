@@ -1,8 +1,14 @@
 package com.skillbridge.gig.dto;
 
-public class CreateCategoryRequest {
-    private String title;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import lombok.Setter;
 
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
+@Getter
+@Setter
+public class CreateCategoryRequest {
+    @NotBlank
+    @Size(max = 255)
+    private String title;
 }

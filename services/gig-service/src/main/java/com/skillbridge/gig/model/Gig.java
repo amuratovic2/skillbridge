@@ -1,6 +1,12 @@
 package com.skillbridge.gig.model;
 
 import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -11,6 +17,10 @@ import java.util.List;
 
 @Entity
 @Table(name = "gigs", schema = "gigs")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class Gig {
 
     @Id
@@ -61,6 +71,7 @@ public class Gig {
     private Category category;
 
     @ManyToMany(fetch = FetchType.LAZY)
+    @BatchSize(size = 20)
     @JoinTable(
         name = "gig_tags", schema = "gigs",
         joinColumns = @JoinColumn(name = "gig_id"),
@@ -69,52 +80,7 @@ public class Gig {
     private List<Tag> tags = new ArrayList<>();
 
     @OneToMany(mappedBy = "gig", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 20)
     @OrderBy("sortOrder ASC")
     private List<GigImage> images = new ArrayList<>();
-
-    public Gig() {}
-
-    public Integer getId() { return id; }
-    public void setId(Integer id) { this.id = id; }
-
-    public Integer getFreelancerId() { return freelancerId; }
-    public void setFreelancerId(Integer freelancerId) { this.freelancerId = freelancerId; }
-
-    public Integer getCategoryId() { return categoryId; }
-
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
-
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-
-    public BigDecimal getCost() { return cost; }
-    public void setCost(BigDecimal cost) { this.cost = cost; }
-
-    public Integer getDeliveryTime() { return deliveryTime; }
-    public void setDeliveryTime(Integer deliveryTime) { this.deliveryTime = deliveryTime; }
-
-    public Integer getRevisionCount() { return revisionCount; }
-    public void setRevisionCount(Integer revisionCount) { this.revisionCount = revisionCount; }
-
-    public GigStatus getStatus() { return status; }
-    public void setStatus(GigStatus status) { this.status = status; }
-
-    public String getCoverImage() { return coverImage; }
-    public void setCoverImage(String coverImage) { this.coverImage = coverImage; }
-
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-
-    public Category getCategory() { return category; }
-    public void setCategory(Category category) { this.category = category; }
-
-    public List<Tag> getTags() { return tags; }
-    public void setTags(List<Tag> tags) { this.tags = tags; }
-
-    public String getFreelancerName() { return freelancerName; }
-    public void setFreelancerName(String freelancerName) { this.freelancerName = freelancerName; }
-
-    public List<GigImage> getImages() { return images; }
-    public void setImages(List<GigImage> images) { this.images = images; }
 }

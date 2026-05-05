@@ -1,14 +1,20 @@
 package com.skillbridge.communication.controller;
 
 import com.skillbridge.communication.dto.ApiResponse;
+import com.skillbridge.communication.dto.CreateDisputeRequest;
+import com.skillbridge.communication.dto.ResolveDisputeRequest;
 import com.skillbridge.communication.model.DisputeStatus;
 import com.skillbridge.communication.service.DisputeService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/disputes")
+@Validated
 public class DisputeController {
 
     private final DisputeService disputeService;
@@ -19,46 +25,46 @@ public class DisputeController {
 
     @PostMapping
     public ApiResponse<?> create(
-        @RequestHeader("x-user-id") Integer userId,
-        @RequestBody Map<String, Object> body
+        @RequestHeader("x-user-id") @Positive Integer userId,
+        @Valid @RequestBody CreateDisputeRequest request
     ) {
-        Integer orderId = (Integer) body.get("orderId");
-        String reason = (String) body.get("reason");
-        String description = (String) body.get("description");
-        return ApiResponse.ok(disputeService.create(userId, orderId, reason, description));
+        return ApiResponse.ok(disputeService.create(
+            userId,
+            request.orderId(),
+            request.reason(),
+            request.description()
+        ));
     }
 
     @GetMapping
     public ApiResponse<?> findAll(
         @RequestParam(required = false) DisputeStatus status,
-        @RequestParam(defaultValue = "1") int page,
-        @RequestParam(defaultValue = "10") int limit
+        @RequestParam(defaultValue = "1") @Min(1) int page,
+        @RequestParam(defaultValue = "10") @Min(1) @Max(100) int limit
     ) {
         var result = disputeService.findAll(status, page, limit);
         return ApiResponse.ok(result.get("data"), result.get("meta"));
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<?> findById(@PathVariable Integer id) {
+    public ApiResponse<?> findById(@PathVariable @Positive Integer id) {
         return ApiResponse.ok(disputeService.findById(id));
     }
 
     @PatchMapping("/{id}/assign")
     public ApiResponse<?> assign(
-        @PathVariable Integer id,
-        @RequestHeader("x-user-id") Integer adminId
+        @PathVariable @Positive Integer id,
+        @RequestHeader("x-user-id") @Positive Integer adminId
     ) {
         return ApiResponse.ok(disputeService.assign(id, adminId));
     }
 
     @PatchMapping("/{id}/resolve")
     public ApiResponse<?> resolve(
-        @PathVariable Integer id,
-        @RequestHeader("x-user-id") Integer adminId,
-        @RequestBody Map<String, Object> body
+        @PathVariable @Positive Integer id,
+        @RequestHeader("x-user-id") @Positive Integer adminId,
+        @Valid @RequestBody ResolveDisputeRequest request
     ) {
-        String resolution = (String) body.get("resolution");
-        DisputeStatus status = DisputeStatus.valueOf((String) body.get("status"));
-        return ApiResponse.ok(disputeService.resolve(id, adminId, resolution, status));
+        return ApiResponse.ok(disputeService.resolve(id, adminId, request.resolution(), request.status()));
     }
 }

@@ -1,7 +1,10 @@
 package com.skillbridge.gig.service;
 
+import com.skillbridge.gig.dto.CategoryResponse;
+import com.skillbridge.gig.mapper.GigMapper;
 import com.skillbridge.gig.model.Category;
 import com.skillbridge.gig.repository.CategoryRepository;
+import com.skillbridge.gig.repository.GigRepository;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -15,42 +18,50 @@ import java.util.Map;
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final GigRepository gigRepository;
 
-    public CategoryService(CategoryRepository categoryRepository) {
+    public CategoryService(CategoryRepository categoryRepository, GigRepository gigRepository) {
         this.categoryRepository = categoryRepository;
+        this.gigRepository = gigRepository;
     }
 
-    public List<Category> findAll() {
-        return categoryRepository.findAll(Sort.by("title").ascending());
+    public List<CategoryResponse> findAll() {
+        return categoryRepository.findAll(Sort.by("title").ascending()).stream()
+            .map(GigMapper::toResponse)
+            .toList();
     }
 
-    public Category findBySlug(String slug) {
-        return categoryRepository.findBySlug(slug)
+    public CategoryResponse findBySlug(String slug) {
+        Category category = categoryRepository.findBySlug(slug)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
+        return GigMapper.toResponse(category);
     }
 
     @Transactional
-    public Category create(String title) {
+    public CategoryResponse create(String title) {
         String slug = title.toLowerCase().replaceAll("\\s+", "-");
         if (categoryRepository.findBySlug(slug).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Category already exists");
         }
-        return categoryRepository.save(new Category(title, slug));
+        return GigMapper.toResponse(categoryRepository.save(new Category(title, slug)));
     }
 
     @Transactional
-    public Category update(Integer id, String title) {
+    public CategoryResponse update(Integer id, String title) {
         Category category = categoryRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
         category.setTitle(title);
         category.setSlug(title.toLowerCase().replaceAll("\\s+", "-"));
-        return categoryRepository.save(category);
+        return GigMapper.toResponse(categoryRepository.save(category));
     }
 
     @Transactional
     public Map<String, String> delete(Integer id) {
         Category category = categoryRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
+        if (gigRepository.existsByCategoryId(id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Category has gigs and cannot be deleted");
+        }
         categoryRepository.delete(category);
         return Map.of("message", "Category deleted successfully");
     }

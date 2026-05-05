@@ -1,8 +1,10 @@
 package com.skillbridge.communication.service;
 
 import com.skillbridge.communication.dto.SendMessageRequest;
+import com.skillbridge.communication.dto.BatchSendMessagesRequest;
 import com.skillbridge.communication.model.Message;
 import com.skillbridge.communication.repository.MessageRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +14,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,6 +59,34 @@ class MessageServiceTest {
     }
 
     @Test
+    void sendBatchSavesAllMessagesWhenEveryMessageIsValid() {
+        var response = messageService.sendBatch(
+            1,
+            new BatchSendMessagesRequest(List.of(
+                new SendMessageRequest(2, 15, "Prva"),
+                new SendMessageRequest(3, 15, "Druga")
+            ))
+        );
+
+        assertThat(response).hasSize(2);
+        assertThat(messageRepository.count()).isEqualTo(2);
+        assertThat(response).extracting("receiverId").containsExactly(2, 3);
+    }
+
+    @Test
+    void sendBatchIsTransactionalWhenOneMessageIsInvalid() {
+        assertThatThrownBy(() -> messageService.sendBatch(
+            1,
+            new BatchSendMessagesRequest(List.of(
+                new SendMessageRequest(2, 15, "Validna"),
+                new SendMessageRequest(1, 15, "Nevalidna")
+            ))
+        )).isInstanceOf(ResponseStatusException.class);
+
+        assertThat(messageRepository.count()).isZero();
+    }
+
+    @Test
     void markAsReadOnlyUpdatesMessagesForCurrentReceiver() {
         createMessage(2, 1, "Prva", false);
         createMessage(2, 1, "Druga", false);
@@ -81,6 +112,37 @@ class MessageServiceTest {
     }
 
     @Test
+    void patchMessageUpdatesAllowedFields() throws Exception {
+        Message stored = createMessage(1, 2, 20, "Stari tekst", LocalDateTime.now(), false);
+        var patch = new ObjectMapper().readTree("""
+            [
+              { "op": "replace", "path": "/content", "value": "Novi tekst" },
+              { "op": "replace", "path": "/isRead", "value": true }
+            ]
+            """);
+
+        var response = messageService.patchMessage(stored.getId(), 2, patch);
+
+        assertThat(response.content()).isEqualTo("Novi tekst");
+        assertThat(response.isRead()).isTrue();
+    }
+
+    @Test
+    void patchMessageRejectsBlankContentAfterPatch() throws Exception {
+        Message stored = createMessage(1, 2, 20, "Stari tekst", LocalDateTime.now(), false);
+        var patch = new ObjectMapper().readTree("""
+            [
+              { "op": "replace", "path": "/content", "value": "" }
+            ]
+            """);
+
+        assertThatThrownBy(() -> messageService.patchMessage(stored.getId(), 1, patch))
+            .isInstanceOf(ResponseStatusException.class)
+            .extracting(ex -> ((ResponseStatusException) ex).getStatusCode())
+            .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
     void getConversationsByOrderFiltersMessagesByOrderId() {
         createMessage(1, 2, 30, "Narudzba 30", LocalDateTime.now().minusMinutes(2), false);
         createMessage(2, 1, 31, "Narudzba 31", LocalDateTime.now().minusMinutes(1), false);
@@ -93,10 +155,24 @@ class MessageServiceTest {
     }
 
     @Test
+    void getConversationsByOrderSupportsSortWhitelist() {
+        createMessage(1, 2, 30, "B", LocalDateTime.now().minusMinutes(2), false);
+        createMessage(2, 1, 30, "A", LocalDateTime.now().minusMinutes(1), false);
+
+        var response = messageService.getConversationsByOrder(30, 1, 10, "content", "asc");
+        var meta = (Map<?, ?>) response.meta();
+
+        assertThat(response.data()).extracting("content").containsExactly("A", "B");
+        assertThat(meta.get("sortBy")).isEqualTo("content");
+        assertThat(meta.get("direction")).isEqualTo("asc");
+    }
+
+    @Test
     void getConversationListSortsByLastMessageAndCountsUnreadMessages() {
-        createMessage(1, 2, "Stara poslana", true);
-        createMessage(2, 1, "Nova neprocitana", false);
-        createMessage(3, 1, "Najnovija neprocitana", false);
+        LocalDateTime base = LocalDateTime.of(2026, 5, 4, 12, 0);
+        createMessage(1, 2, null, "Stara poslana", base.minusMinutes(3), true);
+        createMessage(2, 1, null, "Nova neprocitana", base.minusMinutes(2), false);
+        createMessage(3, 1, null, "Najnovija neprocitana", base.minusMinutes(1), false);
 
         var conversations = messageService.getConversationList(1);
 

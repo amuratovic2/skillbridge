@@ -1,7 +1,10 @@
 package com.skillbridge.gig.service;
 
 import com.skillbridge.gig.dto.CreateGigRequest;
+import com.skillbridge.gig.dto.GigResponse;
+import com.skillbridge.gig.dto.PageResponse;
 import com.skillbridge.gig.dto.UpdateGigRequest;
+import com.skillbridge.gig.mapper.GigMapper;
 import com.skillbridge.gig.model.Category;
 import com.skillbridge.gig.model.Gig;
 import com.skillbridge.gig.model.GigStatus;
@@ -20,6 +23,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +42,7 @@ public class GigService {
     }
 
     @Transactional
-    public Gig create(Integer freelancerId, CreateGigRequest req) {
+    public GigResponse create(Integer freelancerId, CreateGigRequest req) {
         Category category = categoryRepository.findById(req.getCategoryId())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found"));
 
@@ -63,19 +67,30 @@ public class GigService {
     }
 
     @Transactional(readOnly = true)
-    public Gig findById(Integer id) {
+    public GigResponse findById(Integer id) {
+        return GigMapper.toResponse(findEntityById(id));
+    }
+
+    @Transactional(readOnly = true)
+    public Gig findEntityById(Integer id) {
         Gig gig = gigRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gig not found"));
-        // Force lazy load of tags and images within transaction
+        if (gig.getStatus() == GigStatus.DELETED) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Gig not found");
+        }
         gig.getTags().size();
         gig.getImages().size();
         return gig;
     }
 
     @Transactional
-    public Gig update(Integer id, Integer freelancerId, UpdateGigRequest req) {
+    public GigResponse update(Integer id, Integer freelancerId, UpdateGigRequest req) {
         Gig gig = gigRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gig not found"));
+
+        if (gig.getStatus() == GigStatus.DELETED) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Gig not found");
+        }
 
         if (!gig.getFreelancerId().equals(freelancerId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only edit your own gigs");
@@ -108,6 +123,10 @@ public class GigService {
         Gig gig = gigRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gig not found"));
 
+        if (gig.getStatus() == GigStatus.DELETED) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Gig not found");
+        }
+
         if (!gig.getFreelancerId().equals(freelancerId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only delete your own gigs");
         }
@@ -118,10 +137,12 @@ public class GigService {
     }
 
     @Transactional(readOnly = true)
-    public Map<String, Object> search(String q, Integer categoryId, BigDecimal minPrice,
-                                       BigDecimal maxPrice, Integer deliveryTime,
-                                       String sortBy, int page, int limit) {
-        limit = Math.min(limit, 100);
+    public PageResponse<List<GigResponse>> search(String q, Integer categoryId, BigDecimal minPrice,
+                                                  BigDecimal maxPrice, Integer deliveryTime,
+                                                  String sortBy, int page, int limit) {
+        if (minPrice != null && maxPrice != null && minPrice.compareTo(maxPrice) > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "minPrice must be less than or equal to maxPrice");
+        }
 
         Specification<Gig> spec = (root, query, cb) -> cb.equal(root.get("status"), GigStatus.ACTIVE);
 
@@ -157,7 +178,6 @@ public class GigService {
 
         Page<Gig> result = gigRepository.findAll(spec, PageRequest.of(page - 1, limit, sort));
 
-        // Force lazy load within transaction
         result.getContent().forEach(gig -> {
             gig.getTags().size();
             gig.getImages().size();
@@ -169,33 +189,36 @@ public class GigService {
         meta.put("limit", limit);
         meta.put("totalPages", result.getTotalPages());
 
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("data", result.getContent());
-        response.put("meta", meta);
-        return response;
+        return new PageResponse<>(GigMapper.toResponses(result.getContent()), meta);
     }
 
     @Transactional(readOnly = true)
-    public List<Gig> findByFreelancerId(Integer freelancerId) {
+    public List<GigResponse> findByFreelancerId(Integer freelancerId) {
         List<Gig> gigs = gigRepository.findByFreelancerIdAndStatusNotOrderByCreatedAtDesc(freelancerId, GigStatus.DELETED);
-        gigs.forEach(gig -> gig.getTags().size());
-        return gigs;
+        gigs.forEach(gig -> {
+            gig.getTags().size();
+            gig.getImages().size();
+        });
+        return GigMapper.toResponses(gigs);
     }
 
     @Transactional(readOnly = true)
-    public List<Gig> getFeatured(int limit) {
+    public List<GigResponse> getFeatured(int limit) {
         Page<Gig> page = gigRepository.findAll(
             (root, query, cb) -> cb.equal(root.get("status"), GigStatus.ACTIVE),
             PageRequest.of(0, limit, Sort.by("createdAt").descending())
         );
-        page.getContent().forEach(gig -> gig.getTags().size());
-        return page.getContent();
+        page.getContent().forEach(gig -> {
+            gig.getTags().size();
+            gig.getImages().size();
+        });
+        return GigMapper.toResponses(page.getContent());
     }
 
     private void syncTags(Gig gig, List<String> tagNames) {
         gig.getTags().clear();
         List<Tag> resolved = new ArrayList<>();
-        for (String name : tagNames) {
+        for (String name : new LinkedHashSet<>(tagNames)) {
             String slug = name.toLowerCase().replaceAll("\\s+", "-");
             Tag tag = tagRepository.findBySlug(slug)
                 .orElseGet(() -> tagRepository.save(new Tag(name, slug)));

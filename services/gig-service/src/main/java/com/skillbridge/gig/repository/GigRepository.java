@@ -14,4 +14,6 @@ public interface GigRepository extends JpaRepository<Gig, Integer>, JpaSpecifica
     List<Gig> findByStatusOrderByCreatedAtDesc(GigStatus status);
 
     List<Gig> findByFreelancerIdAndStatusNotOrderByCreatedAtDesc(Integer freelancerId, GigStatus status);
+
+    boolean existsByCategoryId(Integer categoryId);
 }
