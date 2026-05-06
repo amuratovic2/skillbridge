@@ -1,6 +1,8 @@
 package com.skillbridge.order.service;
 
+import com.skillbridge.order.client.GigClient;
 import com.skillbridge.order.dto.CreateOrderRequest;
+import com.skillbridge.order.dto.GigDto;
 import com.skillbridge.order.mapper.OrderMapper;
 import com.skillbridge.order.model.Order;
 import com.skillbridge.order.model.OrderHistory;
@@ -35,19 +37,30 @@ public class OrderService {
     );
 
     private final OrderRepository orderRepository;
+    private final GigClient gigClient;
 
-    public OrderService(OrderRepository orderRepository) {
+    public OrderService(OrderRepository orderRepository, GigClient gigClient) {
         this.orderRepository = orderRepository;
+        this.gigClient = gigClient;
     }
 
+    /**
+     * Creates an order by validating the gig via gig-service (synchronous call).
+     * Price, seller, revision count and delivery deadline are sourced from the gig —
+     * clients cannot manipulate these fields.
+     */
     @Transactional
-    public Order create(Integer clientId, Integer gigId, BigDecimal totalCost, int maxRevisions, int deliveryDays) {
+    public Order create(Integer clientId, Integer gigId) {
+        GigDto gig = gigClient.getGig(gigId);
+        validateGigIsActive(gig);
+
         Order order = new Order();
         order.setClientId(clientId);
         order.setGigId(gigId);
-        order.setTotalCost(totalCost);
-        order.setMaxRevisions(maxRevisions);
-        order.setDeliveryDeadline(LocalDateTime.now().plusDays(deliveryDays));
+        order.setSellerId(gig.getFreelancerId());
+        order.setTotalCost(gig.getCost());
+        order.setMaxRevisions(gig.getRevisionCount());
+        order.setDeliveryDeadline(LocalDateTime.now().plusDays(gig.getDeliveryTime()));
 
         addHistory(order, clientId.longValue(), "ORDER_CREATED", null, OrderStatus.PENDING.name(), null);
         return orderRepository.save(order);
@@ -56,17 +69,21 @@ public class OrderService {
     @Transactional
     public List<Order> batchCreate(Integer clientId, List<CreateOrderRequest> requests) {
         List<Order> orders = requests.stream().map(req -> {
+            GigDto gig = gigClient.getGig(req.getGigId());
+            validateGigIsActive(gig);
+
             Order order = new Order();
             order.setClientId(clientId);
             order.setGigId(req.getGigId());
-            order.setTotalCost(req.getTotalCost());
-            order.setMaxRevisions(req.getMaxRevisions());
-            order.setDeliveryDeadline(LocalDateTime.now().plusDays(req.getDeliveryDays()));
+            order.setSellerId(gig.getFreelancerId());
+            order.setTotalCost(gig.getCost());
+            order.setMaxRevisions(gig.getRevisionCount());
+            order.setDeliveryDeadline(LocalDateTime.now().plusDays(gig.getDeliveryTime()));
             addHistory(order, clientId.longValue(), "ORDER_CREATED", null, OrderStatus.PENDING.name(), null);
             return order;
         }).toList();
 
-        return orderRepository.saveAll(orders); 
+        return orderRepository.saveAll(orders);
     }
 
     public Order findById(Long id) {
@@ -150,6 +167,13 @@ public class OrderService {
             OrderStatus.DELIVERED.name(), OrderStatus.REVISION_REQUESTED.name(), message);
 
         return orderRepository.save(order);
+    }
+
+    private void validateGigIsActive(GigDto gig) {
+        if (!"ACTIVE".equals(gig.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Gig nije dostupan za narudžbu (status: " + gig.getStatus() + ")");
+        }
     }
 
     private void addHistory(Order order, Long userId, String action, String oldStatus, String newStatus, String note) {

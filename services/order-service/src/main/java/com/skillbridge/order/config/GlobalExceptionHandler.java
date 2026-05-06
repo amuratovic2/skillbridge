@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.stream.Collectors;
@@ -18,6 +19,18 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleResponseStatus(ResponseStatusException ex) {
         return ResponseEntity.status(ex.getStatusCode())
             .body(ApiResponse.error(ex.getReason()));
+    }
+
+    /**
+     * GigClient intentionally does not catch ResourceAccessException so Resilience4j
+     * can count it as a circuit-breaker failure. Once the exception propagates here
+     * it means the circuit is still CLOSED (early failures before the circuit opens).
+     * Map it to 503 so the caller gets the same status whether the circuit is open or not.
+     */
+    @ExceptionHandler(ResourceAccessException.class)
+    public ResponseEntity<ApiResponse<Void>> handleResourceAccess(ResourceAccessException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+            .body(ApiResponse.error("Gig service is currently unavailable. Please try again later."));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
