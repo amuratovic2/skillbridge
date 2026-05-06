@@ -3,6 +3,13 @@
   "configurations": [
     {
       "type": "java",
+      "name": "DiscoveryServiceApplication",
+      "request": "launch",
+      "mainClass": "com.skillbridge.discovery.DiscoveryServiceApplication",
+      "projectName": "discovery-service"
+    },
+    {
+      "type": "java",
       "name": "OrderServiceApplication",
       "request": "launch",
       "mainClass": "com.skillbridge.order.OrderServiceApplication",

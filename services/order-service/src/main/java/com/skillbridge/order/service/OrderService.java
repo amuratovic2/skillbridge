@@ -1,11 +1,14 @@
 package com.skillbridge.order.service;
 
+import com.skillbridge.order.dto.CreateOrderRequest;
+import com.skillbridge.order.mapper.OrderMapper;
 import com.skillbridge.order.model.Order;
 import com.skillbridge.order.model.OrderHistory;
 import com.skillbridge.order.model.OrderStatus;
 import com.skillbridge.order.repository.OrderRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,31 +49,66 @@ public class OrderService {
         order.setMaxRevisions(maxRevisions);
         order.setDeliveryDeadline(LocalDateTime.now().plusDays(deliveryDays));
 
-        OrderHistory history = new OrderHistory();
-        history.setOrder(order);
-        history.setChangedByUserId(clientId.longValue());
-        history.setActionType("ORDER_CREATED");
-        history.setNewStatus(OrderStatus.PENDING.name());
-        order.getHistory().add(history);
-
+        addHistory(order, clientId.longValue(), "ORDER_CREATED", null, OrderStatus.PENDING.name(), null);
         return orderRepository.save(order);
     }
 
-    public Order findById(Long id) {
-        return orderRepository.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+    @Transactional
+    public List<Order> batchCreate(Integer clientId, List<CreateOrderRequest> requests) {
+        List<Order> orders = requests.stream().map(req -> {
+            Order order = new Order();
+            order.setClientId(clientId);
+            order.setGigId(req.getGigId());
+            order.setTotalCost(req.getTotalCost());
+            order.setMaxRevisions(req.getMaxRevisions());
+            order.setDeliveryDeadline(LocalDateTime.now().plusDays(req.getDeliveryDays()));
+            addHistory(order, clientId.longValue(), "ORDER_CREATED", null, OrderStatus.PENDING.name(), null);
+            return order;
+        }).toList();
+
+        return orderRepository.saveAll(orders); 
     }
 
-    public Map<String, Object> findByClient(Integer clientId, int page, int limit) {
+    public Order findById(Long id) {
+        return orderRepository.findWithDetailsById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Narudžba nije pronađena"));
+    }
+
+    public Map<String, Object> findByClient(Integer clientId, int page, int limit, String sortBy, String sortDir) {
+        Sort sort = buildSort(sortBy, sortDir);
         Page<Order> orderPage = orderRepository.findByClientIdOrderByOrderDateDesc(
-            clientId, PageRequest.of(page - 1, limit)
+            clientId, PageRequest.of(page - 1, limit, sort)
         );
         return buildPageResult(orderPage, page, limit);
     }
 
-    public Map<String, Object> findBySeller(Integer sellerId, int page, int limit) {
-        Page<Order> orderPage = orderRepository.findAll(PageRequest.of(page - 1, limit));
+    public Map<String, Object> findBySeller(Integer sellerId, int page, int limit, String sortBy, String sortDir) {
+        Sort sort = buildSort(sortBy, sortDir);
+        Page<Order> orderPage = orderRepository.findBySellerIdOrderByOrderDateDesc(
+            sellerId, PageRequest.of(page - 1, limit, sort)
+        );
         return buildPageResult(orderPage, page, limit);
+    }
+
+    public List<Order> findByClientAndStatus(Integer clientId, OrderStatus status) {
+        return orderRepository.findByClientIdAndStatus(clientId, status);
+    }
+
+    public List<Order> findOverdue() {
+        return orderRepository.findOverdueOrders(LocalDateTime.now());
+    }
+
+    public BigDecimal getTotalRevenue(Integer clientId) {
+        return orderRepository.sumCompletedRevenueByClient(clientId);
+    }
+
+    public Map<String, Long> getStatusStatistics() {
+        Map<String, Long> stats = new HashMap<>();
+        List<Object[]> rawStats = orderRepository.countByStatusNative();
+        for (Object[] row : rawStats) {
+            stats.put((String) row[0], ((Number) row[1]).longValue());
+        }
+        return stats;
     }
 
     @Transactional
@@ -78,29 +116,17 @@ public class OrderService {
         Order order = findById(orderId);
         OrderStatus oldStatus = order.getStatus();
 
-        List<OrderStatus> allowed = VALID_TRANSITIONS.get(oldStatus);
-        if (allowed == null || !allowed.contains(newStatus)) {
+        List<OrderStatus> allowed = VALID_TRANSITIONS.getOrDefault(oldStatus, List.of());
+        if (!allowed.contains(newStatus)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "Invalid status transition from " + oldStatus + " to " + newStatus);
+                "Neispravan prijelaz statusa: " + oldStatus + " → " + newStatus);
         }
 
         order.setStatus(newStatus);
+        if (newStatus == OrderStatus.COMPLETED) order.setCompletedAt(LocalDateTime.now());
+        else if (newStatus == OrderStatus.CANCELLED) order.setCancelledAt(LocalDateTime.now());
 
-        if (newStatus == OrderStatus.COMPLETED) {
-            order.setCompletedAt(LocalDateTime.now());
-        } else if (newStatus == OrderStatus.CANCELLED) {
-            order.setCancelledAt(LocalDateTime.now());
-        }
-
-        OrderHistory history = new OrderHistory();
-        history.setOrder(order);
-        history.setChangedByUserId(userId.longValue());
-        history.setActionType("STATUS_CHANGE");
-        history.setOldStatus(oldStatus.name());
-        history.setNewStatus(newStatus.name());
-        history.setNote(note);
-        order.getHistory().add(history);
-
+        addHistory(order, userId.longValue(), "STATUS_CHANGE", oldStatus.name(), newStatus.name(), note);
         return orderRepository.save(order);
     }
 
@@ -109,39 +135,48 @@ public class OrderService {
         Order order = findById(orderId);
 
         if (!order.getClientId().equals(clientId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the client can request a revision");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Samo klijent može zatražiti reviziju");
         }
         if (order.getStatus() != OrderStatus.DELIVERED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only request revision on a delivered order");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Revizija se može zatražiti samo za dostavljenu narudžbu");
         }
         if (order.getUsedRevisions() >= order.getMaxRevisions()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Maximum number of revisions reached");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dostignut maksimalni broj revizija");
         }
 
         order.setUsedRevisions(order.getUsedRevisions() + 1);
         order.setStatus(OrderStatus.REVISION_REQUESTED);
-
-        OrderHistory history = new OrderHistory();
-        history.setOrder(order);
-        history.setChangedByUserId(clientId.longValue());
-        history.setActionType("REVISION_REQUESTED");
-        history.setOldStatus(OrderStatus.DELIVERED.name());
-        history.setNewStatus(OrderStatus.REVISION_REQUESTED.name());
-        history.setNote(message);
-        order.getHistory().add(history);
+        addHistory(order, clientId.longValue(), "REVISION_REQUESTED",
+            OrderStatus.DELIVERED.name(), OrderStatus.REVISION_REQUESTED.name(), message);
 
         return orderRepository.save(order);
     }
 
+    private void addHistory(Order order, Long userId, String action, String oldStatus, String newStatus, String note) {
+        OrderHistory history = new OrderHistory();
+        history.setOrder(order);
+        history.setChangedByUserId(userId);
+        history.setActionType(action);
+        history.setOldStatus(oldStatus);
+        history.setNewStatus(newStatus);
+        history.setNote(note);
+        order.getHistory().add(history);
+    }
+
+    private Sort buildSort(String sortBy, String sortDir) {
+        Sort.Direction direction = "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        return Sort.by(direction, sortBy);
+    }
+
     private Map<String, Object> buildPageResult(Page<Order> page, int pageNum, int limit) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("data", page.getContent());
-        result.put("meta", Map.of(
-            "total", page.getTotalElements(),
-            "page", pageNum,
-            "limit", limit,
-            "totalPages", page.getTotalPages()
-        ));
-        return result;
+        return Map.of(
+            "data", page.getContent().stream().map(OrderMapper::toDTO).toList(),
+            "meta", Map.of(
+                "total", page.getTotalElements(),
+                "page", pageNum,
+                "limit", limit,
+                "totalPages", page.getTotalPages()
+            )
+        );
     }
 }

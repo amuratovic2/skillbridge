@@ -1,8 +1,6 @@
 package com.skillbridge.order.model;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -15,7 +13,6 @@ public class Delivery {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false)
-    @JsonBackReference
     private Order order;
 
     @Column(nullable = false)
@@ -35,22 +32,16 @@ public class Delivery {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-
     public Order getOrder() { return order; }
     public void setOrder(Order order) { this.order = order; }
-
     public int getVersionNumber() { return versionNumber; }
     public void setVersionNumber(int versionNumber) { this.versionNumber = versionNumber; }
-
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
-
     public String getFileUrl() { return fileUrl; }
     public void setFileUrl(String fileUrl) { this.fileUrl = fileUrl; }
-
     public String getFileName() { return fileName; }
     public void setFileName(String fileName) { this.fileName = fileName; }
-
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

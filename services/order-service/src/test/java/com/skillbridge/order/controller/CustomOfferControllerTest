@@ -2,46 +2,117 @@ package com.skillbridge.order.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.skillbridge.order.dto.CreateCustomOfferRequest;
+import com.skillbridge.order.model.CustomOffer;
+import com.skillbridge.order.model.CustomOfferStatus;
+import com.skillbridge.order.service.CustomOfferService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.*;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 
-@WebMvcTest
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@WebMvcTest(CustomOfferController.class)
+@ActiveProfiles("test")
 class CustomOfferControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired MockMvc mockMvc;
+    @Autowired ObjectMapper objectMapper;
+    @MockBean CustomOfferService customOfferService;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Test
-    void createCustomOffer_success() throws Exception {
-        CreateCustomOfferRequest request = new CreateCustomOfferRequest();
-        request.setReceiverId(2);
-        request.setTitle("Test");
-        request.setPrice(new java.math.BigDecimal("50"));
-
-        mockMvc.perform(post("/custom-offers")
-                .header("x-user-id", 1)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk());
+    private CustomOffer fakeOffer() {
+        CustomOffer o = new CustomOffer();
+        o.setSenderId(1);
+        o.setReceiverId(2);
+        o.setTitle("Web app razvoj");
+        o.setPrice(new BigDecimal("500"));
+        o.setDeliveryDays(14);
+        o.setRevisionCount(2);
+        o.setStatus(CustomOfferStatus.PENDING);
+        return o;
     }
 
     @Test
-    void createCustomOffer_validationFail() throws Exception {
-        CreateCustomOfferRequest request = new CreateCustomOfferRequest();
+    void createOffer_success() throws Exception {
+        CreateCustomOfferRequest req = new CreateCustomOfferRequest();
+        req.setReceiverId(2);
+        req.setTitle("Web app razvoj");
+        req.setPrice(new BigDecimal("500"));
+        req.setDeliveryDays(14);
+        req.setRevisionCount(2);
+
+        when(customOfferService.create(anyInt(), any())).thenReturn(fakeOffer());
 
         mockMvc.perform(post("/custom-offers")
                 .header("x-user-id", 1)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
+                .content(objectMapper.writeValueAsString(req)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void createOffer_missingTitle_returns400() throws Exception {
+        CreateCustomOfferRequest req = new CreateCustomOfferRequest();
+        req.setReceiverId(2);
+        req.setPrice(new BigDecimal("500"));
+        req.setDeliveryDays(14);
+
+        mockMvc.perform(post("/custom-offers")
+                .header("x-user-id", 1)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getReceived_returnsList() throws Exception {
+        when(customOfferService.findReceived(1)).thenReturn(List.of(fakeOffer()));
+
+        mockMvc.perform(get("/custom-offers/received").header("x-user-id", 1))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void getSent_returnsList() throws Exception {
+        when(customOfferService.findSent(1)).thenReturn(List.of());
+
+        mockMvc.perform(get("/custom-offers/sent").header("x-user-id", 1))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    void respondToOffer_success() throws Exception {
+        CustomOffer accepted = fakeOffer();
+        accepted.setStatus(CustomOfferStatus.ACCEPTED);
+        when(customOfferService.respond(anyLong(), anyInt(), any())).thenReturn(accepted);
+
+        mockMvc.perform(patch("/custom-offers/1/respond")
+                .header("x-user-id", 2)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\": \"ACCEPTED\"}"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    void withdraw_success() throws Exception {
+        CustomOffer withdrawn = fakeOffer();
+        withdrawn.setStatus(CustomOfferStatus.WITHDRAWN);
+        when(customOfferService.withdraw(anyLong(), anyInt())).thenReturn(withdrawn);
+
+        mockMvc.perform(patch("/custom-offers/1/withdraw")
+                .header("x-user-id", 1))
+            .andExpect(status().isOk());
     }
 }

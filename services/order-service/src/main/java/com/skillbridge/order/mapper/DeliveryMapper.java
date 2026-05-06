@@ -7,7 +7,6 @@ public class DeliveryMapper {
 
     public static DeliveryResponse toDTO(Delivery delivery) {
         DeliveryResponse dto = new DeliveryResponse();
-
         dto.setId(delivery.getId());
         dto.setOrderId(delivery.getOrder().getId());
         dto.setVersionNumber(delivery.getVersionNumber());
@@ -15,7 +14,8 @@ public class DeliveryMapper {
         dto.setFileUrl(delivery.getFileUrl());
         dto.setFileName(delivery.getFileName());
         dto.setCreatedAt(delivery.getCreatedAt());
-
         return dto;
     }
+
+    private DeliveryMapper() {}
 }

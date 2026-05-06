@@ -7,7 +7,6 @@ public class CustomOfferMapper {
 
     public static CustomOfferResponse toDTO(CustomOffer offer) {
         CustomOfferResponse dto = new CustomOfferResponse();
-
         dto.setId(offer.getId());
         dto.setGigId(offer.getGigId());
         dto.setSenderId(offer.getSenderId());
@@ -19,7 +18,9 @@ public class CustomOfferMapper {
         dto.setRevisionCount(offer.getRevisionCount());
         dto.setStatus(offer.getStatus().name());
         dto.setCreatedAt(offer.getCreatedAt());
-
+        dto.setExpiresAt(offer.getExpiresAt());
         return dto;
     }
+
+    private CustomOfferMapper() {}
 }

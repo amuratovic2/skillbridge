@@ -12,6 +12,14 @@ public class OrderMapper {
         dto.setGigId(order.getGigId());
         dto.setTotalCost(order.getTotalCost());
         dto.setStatus(order.getStatus().name());
+        dto.setOrderDate(order.getOrderDate());
+        dto.setDeliveryDeadline(order.getDeliveryDeadline());
+        dto.setMaxRevisions(order.getMaxRevisions());
+        dto.setUsedRevisions(order.getUsedRevisions());
+        dto.setCompletedAt(order.getCompletedAt());
+        dto.setCancelledAt(order.getCancelledAt());
         return dto;
     }
+
+    private OrderMapper() {}
 }
