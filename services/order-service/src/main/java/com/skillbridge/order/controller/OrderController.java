@@ -38,8 +38,7 @@ public class OrderController {
         @Valid @RequestBody CreateOrderRequest request
     ) {
         return ApiResponse.ok(OrderMapper.toDTO(
-            orderService.create(userId, request.getGigId(), request.getTotalCost(),
-                request.getMaxRevisions(), request.getDeliveryDays())
+            orderService.create(userId, request.getGigId())
         ));
     }
 
