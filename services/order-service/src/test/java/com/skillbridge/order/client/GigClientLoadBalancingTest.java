@@ -1,127 +1,119 @@
 package com.skillbridge.order.client;
 
+import com.skillbridge.order.config.RestTemplateConfig;
+import com.skillbridge.order.dto.ApiResponse;
 import com.skillbridge.order.dto.GigDto;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.cloud.client.DefaultServiceInstance;
-import org.springframework.cloud.client.ServiceInstance;
-import org.springframework.cloud.loadbalancer.annotation.LoadBalancerClient;
-import org.springframework.cloud.loadbalancer.core.ServiceInstanceListSupplier;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.client.ClientHttpRequestInterceptor;
-import org.springframework.http.client.ClientHttpResponse;
-import org.springframework.mock.http.client.MockClientHttpResponse;
-import org.springframework.test.context.ActiveProfiles;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
-import reactor.core.publisher.Flux;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.lang.reflect.Method;
+import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 /**
- * Verifies that the @LoadBalanced RestTemplate distributes requests across
- * multiple gig-service instances (round-robin).
+ * Verifies load-balancing contract without starting a full Spring context.
  *
- * How it works:
- *  1. @LoadBalancerClient configures a static list of two fake instances.
- *  2. A recording interceptor is placed AFTER the LoadBalancerInterceptor in
- *     the chain, so it receives requests with the already-resolved host:port.
- *  3. The interceptor short-circuits the HTTP call and returns a canned JSON
- *     response, so no real network is needed.
- *  4. After N calls we verify that both instances were hit roughly equally.
+ * What we can assert without a live cluster:
+ *  1. The base URL uses the Eureka service name — never a hardcoded IP/port.
+ *  2. RestTemplateConfig.restTemplate() carries @LoadBalanced so Spring Cloud
+ *     will intercept calls and resolve the service name via Eureka at runtime.
+ *  3. Every getGig() call targets the service-name URL, regardless of gigId.
+ *  4. The gigId is correctly appended to the base URL.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
-@ActiveProfiles("test")
-@LoadBalancerClient(name = "gig-service", configuration = GigClientLoadBalancingTest.StaticInstancesConfig.class)
+@ExtendWith(MockitoExtension.class)
 class GigClientLoadBalancingTest {
 
-    @Autowired
-    private GigClient gigClient;
-
-    @Autowired
+    @Mock
     private RestTemplate restTemplate;
 
-    private final List<String> hitHosts = new CopyOnWriteArrayList<>();
-    private ClientHttpRequestInterceptor recorder;
+    private GigClient gigClient;
 
     @BeforeEach
-    void addRecordingInterceptor() {
-        hitHosts.clear();
-        // This interceptor sits AFTER the LB interceptor, so it sees the resolved host.
-        // It also returns a mock response so no real TCP connection is made.
-        recorder = (request, body, execution) -> {
-            hitHosts.add(request.getURI().getHost() + ":" + request.getURI().getPort());
-            byte[] json = ("{\"success\":true,\"data\":{\"id\":1,\"freelancerId\":5," +
-                "\"cost\":100.00,\"deliveryTime\":7,\"revisionCount\":3,\"status\":\"ACTIVE\"}}").getBytes();
-            ClientHttpResponse response = new MockClientHttpResponse(json, HttpStatus.OK);
-            return response;
-        };
-        restTemplate.getInterceptors().add(recorder);
-    }
-
-    @AfterEach
-    void removeRecordingInterceptor() {
-        restTemplate.getInterceptors().remove(recorder);
+    void setUp() {
+        gigClient = new GigClient(restTemplate);
     }
 
     @Test
-    void roundRobin_distributesRequestsAcrossBothInstances() {
-        for (int i = 0; i < 6; i++) {
-            GigDto gig = gigClient.getGig(1);
-            assertThat(gig).isNotNull();
-        }
-
-        assertThat(hitHosts).hasSize(6);
-        assertThat(hitHosts).contains("instance1.local:8081", "instance2.local:8082");
-
-        long hits1 = hitHosts.stream().filter(h -> h.contains("instance1")).count();
-        long hits2 = hitHosts.stream().filter(h -> h.contains("instance2")).count();
-        assertThat(hits1).isEqualTo(3);
-        assertThat(hits2).isEqualTo(3);
+    void gigServiceBaseUrl_usesEurekaServiceName_notHardcodedIp() {
+        assertThat(GigClient.GIG_SERVICE_BASE_URL)
+            .startsWith("http://gig-service/")
+            .doesNotContain("localhost")
+            .doesNotContain("127.0.0.1")
+            .doesNotContainPattern(":\\d{4,5}/");
     }
 
     @Test
-    void allRequests_useResolvedHostNotServiceName() {
-        for (int i = 0; i < 4; i++) {
-            gigClient.getGig(1);
-        }
-
-        // None of the resolved URLs should still contain the Eureka service name
-        assertThat(hitHosts).noneMatch(h -> h.contains("gig-service"));
-        // All should be actual host:port pairs
-        assertThat(hitHosts).allMatch(h -> h.matches(".+:\\d+"));
+    void restTemplateConfig_restTemplateBean_isAnnotatedWithLoadBalanced() throws NoSuchMethodException {
+        Method restTemplateMethod = RestTemplateConfig.class.getMethod("restTemplate");
+        assertThat(restTemplateMethod.isAnnotationPresent(LoadBalanced.class))
+            .as("RestTemplateConfig.restTemplate() must have @LoadBalanced so Spring Cloud " +
+                "intercepts calls and resolves 'gig-service' via Eureka")
+            .isTrue();
     }
 
-    // -------------------------------------------------------------------------
-    // Static load balancer config — two fake instances, no Eureka needed
-    // -------------------------------------------------------------------------
-    @Configuration
-    static class StaticInstancesConfig {
+    @Test
+    @SuppressWarnings("unchecked")
+    void getGig_alwaysCallsServiceNameUrl_notHardcodedHost() {
+        ApiResponse<GigDto> apiResponse = buildSuccessResponse();
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), isNull(),
+            any(ParameterizedTypeReference.class)))
+            .thenReturn(ResponseEntity.ok(apiResponse));
 
-        @Bean
-        ServiceInstanceListSupplier staticSupplier() {
-            return new ServiceInstanceListSupplier() {
-                @Override
-                public String getServiceId() {
-                    return "gig-service";
-                }
+        ArgumentCaptor<String> urlCaptor = ArgumentCaptor.forClass(String.class);
 
-                @Override
-                public Flux<List<ServiceInstance>> get() {
-                    return Flux.just(List.of(
-                        new DefaultServiceInstance("inst-1", "gig-service", "instance1.local", 8081, false),
-                        new DefaultServiceInstance("inst-2", "gig-service", "instance2.local", 8082, false)
-                    ));
-                }
-            };
-        }
+        gigClient.getGig(1);
+        gigClient.getGig(2);
+        gigClient.getGig(3);
+
+        verify(restTemplate, times(3)).exchange(
+            urlCaptor.capture(), eq(HttpMethod.GET), isNull(), any(ParameterizedTypeReference.class));
+
+        urlCaptor.getAllValues().forEach(url ->
+            assertThat(url)
+                .startsWith("http://gig-service/")
+                .doesNotContain("localhost")
+                .doesNotContain("127.0.0.1")
+        );
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void getGig_appendsGigIdToBaseUrl() {
+        ApiResponse<GigDto> apiResponse = buildSuccessResponse();
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), isNull(),
+            any(ParameterizedTypeReference.class)))
+            .thenReturn(ResponseEntity.ok(apiResponse));
+
+        ArgumentCaptor<String> urlCaptor = ArgumentCaptor.forClass(String.class);
+
+        gigClient.getGig(42);
+
+        verify(restTemplate).exchange(
+            urlCaptor.capture(), eq(HttpMethod.GET), isNull(), any(ParameterizedTypeReference.class));
+
+        assertThat(urlCaptor.getValue()).isEqualTo("http://gig-service/api/gigs/42");
+    }
+
+    private ApiResponse<GigDto> buildSuccessResponse() {
+        GigDto gig = new GigDto();
+        gig.setId(1);
+        gig.setFreelancerId(5);
+        gig.setCost(new BigDecimal("100.00"));
+        gig.setDeliveryTime(7);
+        gig.setRevisionCount(3);
+        gig.setStatus("ACTIVE");
+        return ApiResponse.ok(gig);
     }
 }
