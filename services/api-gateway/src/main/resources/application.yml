@@ -2,8 +2,12 @@ server:
   port: 3000
 
 spring:
+  application:
+    name: api-gateway
   cloud:
     gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
       globalcors:
         cors-configurations:
           '[/**]':
@@ -14,33 +18,52 @@ spring:
       routes:
         # Auth routes (no JWT validation needed)
         - id: auth-service
-          uri: http://localhost:3001
+          uri: lb://user-service
           predicates:
             - Path=/api/auth/**
 
         # User service routes
         - id: user-service-users
-          uri: http://localhost:3001
+          uri: lb://user-service
           predicates:
             - Path=/api/users/**,/api/portfolios/**,/api/skills/**
 
         # Gig service routes
         - id: gig-service
-          uri: http://localhost:3002
+          uri: lb://gig-service
           predicates:
             - Path=/api/gigs/**,/api/categories/**,/api/tags/**
 
         # Order service routes
         - id: order-service
-          uri: http://localhost:3003
+          uri: lb://order-service
           predicates:
             - Path=/api/orders/**,/api/deliveries/**,/api/custom-offers/**
 
         # Communication service routes
         - id: communication-service
-          uri: http://localhost:3004
+          uri: lb://communication-service
           predicates:
             - Path=/api/messages/**,/api/reviews/**,/api/disputes/**,/api/notifications/**
 
 services:
   user-service-url: http://localhost:3001
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
+    register-with-eureka: ${EUREKA_ENABLED:true}
+    fetch-registry: ${EUREKA_ENABLED:true}
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always

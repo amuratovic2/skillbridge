@@ -16,6 +16,7 @@ Platforma za digitalne usluge koja povezuje klijente i freelancere. Projekat iz 
 apps/
   web/                            → React frontend (port 4200)
 services/
+  discovery-service/              → Eureka service discovery (port 8761)
   api-gateway/                    → Spring Cloud Gateway (port 3000)
   user-service/                   → Auth, korisnici, profili, portfolio (port 3001)
   gig-service/                    → Usluge, kategorije, tagovi (port 3002)
@@ -57,6 +58,11 @@ pnpm install
 Svaki servis u zasebnom terminalu:
 
 ```
+cd services/discovery-service
+mvn spring-boot:run
+```
+
+```
 cd services/user-service
 mvn spring-boot:run
 ```
@@ -84,6 +90,7 @@ mvn spring-boot:run
 Ili koristeći npm skripte (iz root direktorija):
 
 ```
+npm run dev:discovery
 npm run dev:user
 npm run dev:gig
 npm run dev:order

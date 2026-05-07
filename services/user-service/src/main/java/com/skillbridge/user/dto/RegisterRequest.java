@@ -9,7 +9,7 @@ public class RegisterRequest {
     @NotBlank @Size(max = 255) private String username;
     @NotBlank @Email @Size(max = 255) private String email;
     @NotBlank @Size(min = 6, max = 100) private String password;
-    @NotBlank @Pattern(regexp = "CLIENT|FREELANCER|ADMIN", message = "must be CLIENT, FREELANCER or ADMIN") private String role;
+    @NotBlank @Pattern(regexp = "CLIENT|FREELANCER", message = "must be CLIENT or FREELANCER") private String role;
     @Size(max = 255) private String firstName;
     @Size(max = 255) private String lastName;
 

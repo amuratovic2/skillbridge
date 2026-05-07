@@ -19,6 +19,7 @@ import static org.mockito.Mockito.when;
 class UserDirectoryClientTest {
 
     private static final String USER_URL = "http://user-service/api/users/{id}";
+    private static final String USER_DIAGNOSTICS_URL = "http://user-service/api/diagnostics/instance";
 
     @Mock
     private RestTemplate restTemplate;
@@ -87,5 +88,24 @@ class UserDirectoryClientTest {
             .isInstanceOf(ResponseStatusException.class)
             .extracting(ex -> ((ResponseStatusException) ex).getStatusCode())
             .isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    @Test
+    void getUserServiceInstanceReturnsDiagnosticsFromLoadBalancedUserService() throws Exception {
+        when(restTemplate.getForObject(USER_DIAGNOSTICS_URL, com.fasterxml.jackson.databind.JsonNode.class))
+            .thenReturn(objectMapper.readTree("""
+                {
+                  "success": true,
+                  "data": {
+                    "service": "user-service",
+                    "port": "3001",
+                    "instanceId": "user-service:3001"
+                  }
+                }
+                """));
+
+        var result = new UserDirectoryClient(restTemplate).getUserServiceInstance();
+
+        assertThat(result.path("data").path("instanceId").asText()).isEqualTo("user-service:3001");
     }
 }

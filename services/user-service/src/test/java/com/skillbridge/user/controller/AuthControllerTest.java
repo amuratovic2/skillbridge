@@ -159,6 +159,19 @@ class AuthControllerTest {
     }
 
     @Test
+    void validateRejectsRefreshToken() throws Exception {
+        JsonNode registerResponse = registerUser("refresh-as-access.user", "refresh-as-access@example.com");
+        String refreshToken = registerResponse.at("/data/refreshToken").asText();
+
+        mockMvc.perform(post("/auth/validate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("token", refreshToken))))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("unauthorized"));
+    }
+
+    @Test
     void validateRejectsInvalidToken() throws Exception {
         mockMvc.perform(post("/auth/validate")
                 .contentType(MediaType.APPLICATION_JSON)

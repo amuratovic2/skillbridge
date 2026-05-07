@@ -17,6 +17,7 @@ import java.util.Optional;
 public class UserDirectoryClient {
 
     private static final String USER_BY_ID_URL = "http://user-service/api/users/{id}";
+    private static final String USER_DIAGNOSTICS_URL = "http://user-service/api/diagnostics/instance";
 
     private final RestTemplate restTemplate;
 
@@ -50,6 +51,23 @@ public class UserDirectoryClient {
                 return Optional.empty();
             }
             throw unavailable(ex);
+        } catch (ResourceAccessException ex) {
+            throw unavailable(ex);
+        } catch (RestClientException ex) {
+            throw unavailable(ex);
+        }
+    }
+
+    public JsonNode getUserServiceInstance() {
+        try {
+            JsonNode response = restTemplate.getForObject(USER_DIAGNOSTICS_URL, JsonNode.class);
+            if (response == null) {
+                throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "User service diagnostics returned an empty response"
+                );
+            }
+            return response;
         } catch (ResourceAccessException ex) {
             throw unavailable(ex);
         } catch (RestClientException ex) {

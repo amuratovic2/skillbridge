@@ -99,11 +99,19 @@ public class AuthService {
     public Map<String, Object> validateToken(String token) {
         try {
             Claims claims = jwtService.validateToken(token);
+            String email = claims.get("email", String.class);
+            String role = claims.get("role", String.class);
+            if ("refresh".equals(claims.get("type", String.class)) || email == null || role == null) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+            }
+
             Map<String, Object> result = new HashMap<>();
             result.put("userId", Integer.parseInt(claims.getSubject()));
-            result.put("email", claims.get("email", String.class));
-            result.put("role", claims.get("role", String.class));
+            result.put("email", email);
+            result.put("role", role);
             return result;
+        } catch (ResponseStatusException e) {
+            throw e;
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
         }
