@@ -110,11 +110,12 @@ public class OrderController {
     public ApiResponse<?> updateStatus(
         @PathVariable Long id,
         @RequestHeader("x-user-id") Integer userId,
+        @RequestHeader("x-user-role") String userRole,
         @Valid @RequestBody OrderStatusUpdateRequest request
     ) {
         OrderStatus newStatus = OrderStatus.valueOf(request.getStatus().toUpperCase());
         return ApiResponse.ok(OrderMapper.toDTO(
-            orderService.updateStatus(id, userId, newStatus, request.getNote())
+            orderService.updateStatus(id, userId, userRole, newStatus, request.getNote())
         ));
     }
 

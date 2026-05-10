@@ -58,6 +58,10 @@ public class Gig {
     @Column(name = "freelancer_name", length = 255)
     private String freelancerName;
 
+    // Tracks active orders placed for this gig (saga choreography)
+    @Column(name = "active_order_count", nullable = false)
+    private int activeOrderCount = 0;
+
     @Column(name = "created_at", updatable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;

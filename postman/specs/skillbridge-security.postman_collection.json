@@ -1,0 +1,763 @@
+{
+  "info": {
+    "name": "Skillbridge – Security Documentation",
+    "description": "Complete security flow: authentication, role-based authorization, error cases.\n\n**Setup:** Import `skillbridge-local` environment and run the requests in order. The login requests auto-save tokens to environment variables used by subsequent requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [],
+  "item": [
+    {
+      "name": "1 – Authentication",
+      "description": "Full authentication lifecycle: register, login (saves tokens), refresh, logout.",
+      "item": [
+        {
+          "name": "1.1 Register – CLIENT",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"testclient\",\n  \"email\": \"testclient@example.com\",\n  \"password\": \"Password123!\",\n  \"role\": \"CLIENT\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"Client\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns accessToken', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.true;",
+                  "  pm.expect(body.data.accessToken).to.be.a('string');",
+                  "  pm.environment.set('clientToken', body.data.accessToken);",
+                  "  pm.environment.set('clientRefresh', body.data.refreshToken);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.2 Register – FREELANCER",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"testfreelancer\",\n  \"email\": \"testfreelancer@example.com\",\n  \"password\": \"Password123!\",\n  \"role\": \"FREELANCER\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"Freelancer\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns accessToken', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.accessToken).to.be.a('string');",
+                  "  pm.environment.set('freelancerToken', body.data.accessToken);",
+                  "  pm.environment.set('freelancerRefresh', body.data.refreshToken);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.3 Login – CLIENT (saves token)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john.client@skillbridge.dev\",\n  \"password\": \"Password123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has both tokens', () => {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.accessToken).to.be.a('string');",
+                  "  pm.expect(data.refreshToken).to.be.a('string');",
+                  "  pm.environment.set('clientToken', data.accessToken);",
+                  "  pm.environment.set('clientRefresh', data.refreshToken);",
+                  "  console.log('CLIENT token saved:', data.accessToken.substring(0,30) + '...');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.4 Login – FREELANCER (saves token)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice.freelancer@skillbridge.dev\",\n  \"password\": \"Password123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has both tokens', () => {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.environment.set('freelancerToken', data.accessToken);",
+                  "  pm.environment.set('freelancerRefresh', data.refreshToken);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.5 Login – ADMIN (saves token)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@skillbridge.dev\",\n  \"password\": \"Password123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Admin token saved', () => {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.environment.set('adminToken', data.accessToken);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.6 Refresh Token",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/refresh",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{clientRefresh}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('New tokens issued', () => {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.accessToken).to.be.a('string');",
+                  "  pm.expect(data.refreshToken).to.be.a('string');",
+                  "  pm.environment.set('clientToken', data.accessToken);",
+                  "  pm.environment.set('clientRefresh', data.refreshToken);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.7 Logout",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/logout",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{clientRefresh}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Logout confirmed', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 – Public Endpoints (No Auth Required)",
+      "description": "These endpoints are accessible without a token.",
+      "item": [
+        {
+          "name": "2.1 Search Gigs (public)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/gigs/search?page=1&limit=5",
+              "query": [
+                { "key": "page",  "value": "1" },
+                { "key": "limit", "value": "5" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 without any token', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns gig list', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.true;",
+                  "  pm.expect(body.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.2 Get Gig by ID (public)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/gigs/{{gigId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 without any token', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.3 Get Categories (public)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/categories"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 without any token', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 – Protected Resources – Happy Path",
+      "description": "Authenticated requests with the correct role succeed.",
+      "item": [
+        {
+          "name": "3.1 Create Gig – FREELANCER token → 201",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/gigs",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{freelancerToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": 1,\n  \"title\": \"Professional Web App\",\n  \"description\": \"Full-stack React + Spring Boot application\",\n  \"cost\": 299.99,\n  \"deliveryTime\": 7,\n  \"revisionCount\": 3,\n  \"tags\": [\"react\", \"spring-boot\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FREELANCER can create gig – status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Gig data returned', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.true;",
+                  "  if (body.data && body.data.id) pm.environment.set('gigId', body.data.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.2 Place Order – CLIENT token → 200",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/orders",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"gigId\": {{gigId}}\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('CLIENT can place order', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "if (pm.response.code < 300) {",
+                  "  const data = pm.response.json().data;",
+                  "  if (data && data.id) pm.environment.set('orderId', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.3 Get My Buying Orders – CLIENT token → 200",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/orders/my/buying",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns orders array', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.4 Get Overdue Orders – ADMIN token → 200",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/orders/overdue",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('ADMIN can get overdue orders – status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.5 Get Disputes List – ADMIN token → 200",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/disputes",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('ADMIN can list disputes – status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4 – Wrong Authentication (401)",
+      "description": "Requests that fail because authentication is missing or invalid.",
+      "item": [
+        {
+          "name": "4.1 Place Order – NO token → 401",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/orders",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"gigId\": 1 }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Missing token returns 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error message present', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.false;",
+                  "  pm.expect(body.message).to.include('Missing bearer token');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.2 Place Order – INVALID token → 401",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/orders",
+            "header": [
+              { "key": "Authorization", "value": "Bearer this.is.not.a.valid.jwt.token" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"gigId\": 1 }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Invalid token returns 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error is unauthorized', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.3 Create Gig – NO token → 401",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/gigs",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": 1,\n  \"title\": \"Test Gig\",\n  \"description\": \"desc\",\n  \"cost\": 50,\n  \"deliveryTime\": 3,\n  \"revisionCount\": 2\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('No token returns 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.4 Refresh with USED token → 401",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/refresh",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"00000000-0000-0000-0000-000000000000\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Invalid refresh token returns 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error message present', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5 – Wrong Authorization (403)",
+      "description": "Requests that fail because the authenticated user's role is insufficient.",
+      "item": [
+        {
+          "name": "5.1 Create Gig – CLIENT token → 403 (needs FREELANCER)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/gigs",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": 1,\n  \"title\": \"Test Gig\",\n  \"description\": \"desc\",\n  \"cost\": 50,\n  \"deliveryTime\": 3,\n  \"revisionCount\": 2\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('CLIENT cannot create gig – returns 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Error is forbidden', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.false;",
+                  "  pm.expect(body.error).to.include('forbidden');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.2 Place Order – FREELANCER token → 403 (needs CLIENT)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/orders",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{freelancerToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"gigId\": {{gigId}} }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FREELANCER cannot place order – returns 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Error is forbidden', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.3 Get Overdue Orders – CLIENT token → 403 (needs ADMIN)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/orders/overdue",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('CLIENT cannot see overdue orders – returns 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.4 List Disputes – FREELANCER token → 403 (needs ADMIN)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/disputes",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{freelancerToken}}" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FREELANCER cannot list disputes – returns 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.5 Create Category – CLIENT token → 403 (needs ADMIN)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/categories",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"name\": \"Test Category\" }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('CLIENT cannot create category – returns 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5.6 Direct Service Access (bypass gateway) → 403",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:3001/api/users",
+            "header": []
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Direct service access is blocked – returns 403', () => pm.response.to.have.status(403));",
+                  "pm.test('Gateway message shown', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.message).to.include('API gateway');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6 – Business Logic Errors (400)",
+      "description": "Authenticated, correctly-authorized requests that violate business rules.",
+      "item": [
+        {
+          "name": "6.1 Order Own Gig – CLIENT ordering their own gig → 400",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/orders",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{freelancerToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"gigId\": {{gigId}} }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Note: This test uses the freelancer token but FREELANCERS cannot POST /orders (403 from gateway).",
+                  "// To test self-order: log in as a user who is BOTH client AND owns a gig.",
+                  "// The gateway blocks FREELANCER role on POST /orders (returns 403).",
+                  "// If the user had CLIENT role and owned the gig, the service returns 400.",
+                  "pm.test('Role error (403) or self-order error (400)', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400, 403]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.2 Register Duplicate Email → 409",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"john_client_dup\",\n  \"email\": \"john.client@skillbridge.dev\",\n  \"password\": \"Password123!\",\n  \"role\": \"CLIENT\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Dup\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Duplicate email returns 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Conflict message returned', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6.3 Invalid Status Transition on Order → 400",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/orders/{{orderId}}/status",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" },
+              { "key": "Content-Type",   "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"COMPLETED\",\n  \"note\": \"Trying to skip to completed directly\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Invalid transition returns 400', () => {",
+                  "  // PENDING → COMPLETED is not a valid transition, should return 400",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400, 403]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

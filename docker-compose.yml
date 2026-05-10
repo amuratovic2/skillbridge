@@ -20,5 +20,21 @@ services:
       timeout: 5s
       retries: 5
 
+  skillbridge-rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: skillbridge-rabbitmq
+    restart: unless-stopped
+    ports:
+      - '5672:5672'    # AMQP
+      - '15672:15672'  # Management UI (http://localhost:15672, user: skillbridge / skillbridge)
+    environment:
+      RABBITMQ_DEFAULT_USER: skillbridge
+      RABBITMQ_DEFAULT_PASS: skillbridge
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   skillbridge_pgdata:

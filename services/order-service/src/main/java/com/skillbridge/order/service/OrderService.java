@@ -8,6 +8,8 @@ import com.skillbridge.order.model.Order;
 import com.skillbridge.order.model.OrderHistory;
 import com.skillbridge.order.model.OrderStatus;
 import com.skillbridge.order.repository.OrderRepository;
+import com.skillbridge.order.saga.OrderPlacedEvent;
+import com.skillbridge.order.saga.OrderSagaPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -38,10 +40,13 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final GigClient gigClient;
+    private final OrderSagaPublisher sagaPublisher;
 
-    public OrderService(OrderRepository orderRepository, GigClient gigClient) {
+    public OrderService(OrderRepository orderRepository, GigClient gigClient,
+                        OrderSagaPublisher sagaPublisher) {
         this.orderRepository = orderRepository;
         this.gigClient = gigClient;
+        this.sagaPublisher = sagaPublisher;
     }
 
     /**
@@ -54,6 +59,11 @@ public class OrderService {
         GigDto gig = gigClient.getGig(gigId);
         validateGigIsActive(gig);
 
+        if (clientId.equals(gig.getFreelancerId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Ne možete naručiti vlastiti gig");
+        }
+
         Order order = new Order();
         order.setClientId(clientId);
         order.setGigId(gigId);
@@ -63,7 +73,15 @@ public class OrderService {
         order.setDeliveryDeadline(LocalDateTime.now().plusDays(gig.getDeliveryTime()));
 
         addHistory(order, clientId.longValue(), "ORDER_CREATED", null, OrderStatus.PENDING.name(), null);
-        return orderRepository.save(order);
+        Order saved = orderRepository.save(order);
+
+        // Publish async saga event – gig-service will validate gig availability
+        // and reply with order.confirmed or order.rejected
+        sagaPublisher.publishOrderPlaced(new OrderPlacedEvent(
+            saved.getId(), gigId, clientId, gig.getFreelancerId(), gig.getCost()
+        ));
+
+        return saved;
     }
 
     @Transactional
@@ -129,8 +147,16 @@ public class OrderService {
     }
 
     @Transactional
-    public Order updateStatus(Long orderId, Integer userId, OrderStatus newStatus, String note) {
+    public Order updateStatus(Long orderId, Integer userId, String userRole, OrderStatus newStatus, String note) {
         Order order = findById(orderId);
+
+        boolean isAdmin = "ADMIN".equals(userRole);
+        boolean isParty = userId.equals(order.getClientId()) || userId.equals(order.getSellerId());
+        if (!isAdmin && !isParty) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                "Nemate pristup ovoj narudžbi");
+        }
+
         OrderStatus oldStatus = order.getStatus();
 
         List<OrderStatus> allowed = VALID_TRANSITIONS.getOrDefault(oldStatus, List.of());
