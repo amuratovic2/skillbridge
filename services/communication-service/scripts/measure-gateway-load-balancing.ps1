@@ -1,18 +1,20 @@
 param(
-    [string]$Url = "http://localhost:3004/api/diagnostics/user-service-instance",
-    [int]$Requests = 100
+    [string]$Url = "http://localhost:3000/api/diagnostics/instance",
+    [int]$Requests = 100,
+    [int]$TimeoutSec = 3
 )
 
 $counts = @{}
 $failures = 0
+$failureMessages = @{}
 $timer = [System.Diagnostics.Stopwatch]::StartNew()
 
 for ($i = 1; $i -le $Requests; $i++) {
     try {
-        $response = Invoke-RestMethod -Uri $Url -Method Get -TimeoutSec 10
-        $instance = $response.data.userService.data.instanceId
+        $response = Invoke-RestMethod -Uri $Url -Method Get -TimeoutSec $TimeoutSec
+        $instance = $response.data.instanceId
         if (-not $instance) {
-            $instance = $response.data.userService.data.port
+            $instance = $response.data.port
         }
         if (-not $instance) {
             $instance = "unknown"
@@ -23,6 +25,11 @@ for ($i = 1; $i -le $Requests; $i++) {
         $counts[$instance]++
     } catch {
         $failures++
+        $message = $_.Exception.Message
+        if (-not $failureMessages.ContainsKey($message)) {
+            $failureMessages[$message] = 0
+        }
+        $failureMessages[$message]++
     }
 }
 
@@ -34,4 +41,5 @@ $timer.Stop()
     failures = $failures
     totalMilliseconds = $timer.ElapsedMilliseconds
     distribution = $counts
+    failureMessages = $failureMessages
 } | ConvertTo-Json -Depth 5

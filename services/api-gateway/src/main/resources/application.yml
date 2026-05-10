@@ -42,6 +42,11 @@ spring:
             - Path=/api/orders/**,/api/deliveries/**,/api/custom-offers/**
 
         # Communication service routes
+        - id: communication-diagnostics
+          uri: lb://communication-service
+          predicates:
+            - Path=/api/diagnostics/**
+
         - id: communication-service
           uri: lb://communication-service
           predicates:

@@ -63,6 +63,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             new RouteRule(HttpMethod.GET, parser.parse("/api/tags/**"), ALL_ROLES),
             new RouteRule(HttpMethod.GET, parser.parse("/api/users"), ALL_ROLES),
             new RouteRule(HttpMethod.GET, parser.parse("/api/users/{id:[0-9]+}"), ALL_ROLES),
+            new RouteRule(HttpMethod.GET, parser.parse("/api/diagnostics/**"), ALL_ROLES),
             new RouteRule(HttpMethod.GET, parser.parse("/api/skills"), ALL_ROLES),
             new RouteRule(HttpMethod.GET, parser.parse("/api/skills/user/{userId:[0-9]+}"), ALL_ROLES),
             new RouteRule(HttpMethod.GET, parser.parse("/api/portfolios/user/{userId:[0-9]+}"), ALL_ROLES),
