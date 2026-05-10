@@ -1,7 +1,0 @@
-export enum CustomOfferStatus {
-  PENDING = 'PENDING',
-  ACCEPTED = 'ACCEPTED',
-  REJECTED = 'REJECTED',
-  WITHDRAWN = 'WITHDRAWN',
-  EXPIRED = 'EXPIRED',
-}

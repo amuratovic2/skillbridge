@@ -4,6 +4,24 @@
   "sourceRoot": "apps/web/src",
   "projectType": "application",
   "tags": [],
-  "// targets": "to see all targets run: nx show project web --web",
-  "targets": {}
+  "targets": {
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vite --config apps/web/vite.config.mts"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vite build --config apps/web/vite.config.mts"
+      }
+    },
+    "preview": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vite preview --config apps/web/vite.config.mts"
+      }
+    }
+  }
 }

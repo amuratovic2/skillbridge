@@ -12,6 +12,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.List;
+
 @Configuration
 public class RestTemplateConfig {
 
@@ -26,6 +28,9 @@ public class RestTemplateConfig {
 
     @Value("${rest.client.max-connections-per-route:20}")
     private int maxConnectionsPerRoute;
+
+    @Value("${gateway.internal-secret}")
+    private String gatewayInternalSecret;
 
     /**
      * Load-balanced RestTemplate backed by Apache HttpClient 5.
@@ -54,6 +59,11 @@ public class RestTemplateConfig {
             .setDefaultRequestConfig(requestConfig)
             .build();
 
-        return new RestTemplate(new HttpComponentsClientHttpRequestFactory(httpClient));
+        RestTemplate restTemplate = new RestTemplate(new HttpComponentsClientHttpRequestFactory(httpClient));
+        restTemplate.setInterceptors(List.of((request, body, execution) -> {
+            request.getHeaders().set("x-internal-gateway-secret", gatewayInternalSecret);
+            return execution.execute(request, body);
+        }));
+        return restTemplate;
     }
 }

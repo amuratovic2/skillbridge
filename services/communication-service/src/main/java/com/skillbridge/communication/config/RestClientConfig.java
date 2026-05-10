@@ -17,11 +17,16 @@ public class RestClientConfig {
     public RestTemplate loadBalancedRestTemplate(
         RestTemplateBuilder builder,
         @Value("${communication.user-service.connect-timeout-ms:1000}") long connectTimeoutMs,
-        @Value("${communication.user-service.read-timeout-ms:1500}") long readTimeoutMs
+        @Value("${communication.user-service.read-timeout-ms:1500}") long readTimeoutMs,
+        @Value("${gateway.internal-secret}") String gatewayInternalSecret
     ) {
         return builder
             .connectTimeout(Duration.ofMillis(connectTimeoutMs))
             .readTimeout(Duration.ofMillis(readTimeoutMs))
+            .additionalInterceptors((request, body, execution) -> {
+                request.getHeaders().set("x-internal-gateway-secret", gatewayInternalSecret);
+                return execution.execute(request, body);
+            })
             .build();
     }
 }

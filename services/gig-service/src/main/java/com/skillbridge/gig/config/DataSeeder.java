@@ -54,7 +54,7 @@ public class DataSeeder implements CommandLineRunner {
         Tag seo = tagRepository.save(new Tag("SEO", "seo"));
         Tag videoEditing = tagRepository.save(new Tag("Video editing", "video-editing"));
         Tag branding = tagRepository.save(new Tag("Branding", "branding"));
-        Tag nodejs = tagRepository.save(new Tag("Node.js", "node-js"));
+        Tag springBoot = tagRepository.save(new Tag("Spring Boot", "spring-boot"));
         Tag mobileApp = tagRepository.save(new Tag("Mobile app", "mobile-app"));
         Tag figma = tagRepository.save(new Tag("Figma", "figma"));
         Tag youtube = tagRepository.save(new Tag("YouTube", "youtube"));
@@ -75,17 +75,17 @@ public class DataSeeder implements CommandLineRunner {
 
         // Gigs - Stefan (freelancerId=3)
         Gig gig3 = createGig(3, "Stefan Milić", programiranje,
-            "Full-stack web aplikacija u React & Node.js",
+            "Full-stack web aplikacija u React & Spring Boot",
             "Razvit ću vašu web aplikaciju koristeći najmodernije tehnologije:\n\n" +
-            "• Frontend: React + TypeScript + Tailwind CSS\n• Backend: Node.js + NestJS + PostgreSQL\n" +
+            "• Frontend: React + TypeScript + Tailwind CSS\n• Backend: Java + Spring Boot + PostgreSQL\n" +
             "• Responsivan dizajn za sve uređaje\n• REST ili GraphQL API\n• Deployment na Vercel/Railway\n\n" +
             "Iskustvo u e-commerce, SaaS, dashboard i CRM aplikacijama.",
-            new BigDecimal("500"), 14, 3, List.of(react, nodejs));
+            new BigDecimal("500"), 14, 3, List.of(react, springBoot));
 
         Gig gig4 = createGig(3, "Stefan Milić", programiranje,
-            "Custom REST API u Node.js i TypeScript",
+            "Custom REST API u Spring Boot i Java",
             "Dizajnirat ću i implementirati skalabilan REST API za vašu aplikaciju. Uključuje dokumentaciju, testove i deployment.",
-            new BigDecimal("300"), 7, 2, List.of(nodejs));
+            new BigDecimal("300"), 7, 2, List.of(springBoot));
 
         // Gigs - Ana (freelancerId=4)
         Gig gig5 = createGig(4, "Ana Petrović", video,

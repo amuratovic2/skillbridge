@@ -10,130 +10,38 @@
     },
     {
       "type": "java",
+      "name": "ApiGatewayApplication",
+      "request": "launch",
+      "mainClass": "com.skillbridge.gateway.ApiGatewayApplication",
+      "projectName": "api-gateway"
+    },
+    {
+      "type": "java",
+      "name": "UserServiceApplication",
+      "request": "launch",
+      "mainClass": "com.skillbridge.user.UserServiceApplication",
+      "projectName": "user-service"
+    },
+    {
+      "type": "java",
+      "name": "GigServiceApplication",
+      "request": "launch",
+      "mainClass": "com.skillbridge.gig.GigServiceApplication",
+      "projectName": "gig-service"
+    },
+    {
+      "type": "java",
       "name": "OrderServiceApplication",
       "request": "launch",
       "mainClass": "com.skillbridge.order.OrderServiceApplication",
       "projectName": "order-service"
     },
     {
-      "type": "node",
+      "type": "java",
+      "name": "CommunicationServiceApplication",
       "request": "launch",
-      "name": "Debug api-gateway with Nx",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": [
-        "nx",
-        "serve",
-        "api-gateway"
-      ],
-      "env": {
-        "NODE_OPTIONS": "--inspect=9229"
-      },
-      "console": "integratedTerminal",
-      "internalConsoleOptions": "neverOpen",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "sourceMaps": true,
-      "outFiles": [
-        "${workspaceFolder}/apps/api-gateway/dist/**/*.(m|c|)js",
-        "!**/node_modules/**"
-      ]
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Debug user-service with Nx",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": [
-        "nx",
-        "serve",
-        "user-service"
-      ],
-      "env": {
-        "NODE_OPTIONS": "--inspect=9230"
-      },
-      "console": "integratedTerminal",
-      "internalConsoleOptions": "neverOpen",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "sourceMaps": true,
-      "outFiles": [
-        "${workspaceFolder}/apps/user-service/dist/**/*.(m|c|)js",
-        "!**/node_modules/**"
-      ]
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Debug gig-service with Nx",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": [
-        "nx",
-        "serve",
-        "gig-service"
-      ],
-      "env": {
-        "NODE_OPTIONS": "--inspect=9231"
-      },
-      "console": "integratedTerminal",
-      "internalConsoleOptions": "neverOpen",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "sourceMaps": true,
-      "outFiles": [
-        "${workspaceFolder}/apps/gig-service/dist/**/*.(m|c|)js",
-        "!**/node_modules/**"
-      ]
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Debug order-service with Nx",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": [
-        "nx",
-        "serve",
-        "order-service"
-      ],
-      "env": {
-        "NODE_OPTIONS": "--inspect=9232"
-      },
-      "console": "integratedTerminal",
-      "internalConsoleOptions": "neverOpen",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "sourceMaps": true,
-      "outFiles": [
-        "${workspaceFolder}/apps/order-service/dist/**/*.(m|c|)js",
-        "!**/node_modules/**"
-      ]
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Debug communication-service with Nx",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": [
-        "nx",
-        "serve",
-        "communication-service"
-      ],
-      "env": {
-        "NODE_OPTIONS": "--inspect=9233"
-      },
-      "console": "integratedTerminal",
-      "internalConsoleOptions": "neverOpen",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "sourceMaps": true,
-      "outFiles": [
-        "${workspaceFolder}/apps/communication-service/dist/**/*.(m|c|)js",
-        "!**/node_modules/**"
-      ]
+      "mainClass": "com.skillbridge.communication.CommunicationServiceApplication",
+      "projectName": "communication-service"
     }
   ]
 }

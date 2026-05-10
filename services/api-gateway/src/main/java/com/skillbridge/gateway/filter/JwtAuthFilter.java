@@ -31,7 +31,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         "x-user-id",
         "x-user-role",
         "x-user-email",
-        "x-authenticated-by"
+        "x-authenticated-by",
+        "x-internal-gateway-secret"
     );
 
     private static final Set<String> ALL_ROLES = Set.of("CLIENT", "FREELANCER", "ADMIN");
@@ -40,14 +41,22 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     private static final Set<String> ADMIN_ROLES = Set.of("ADMIN");
 
     private final WebClient webClient;
+    private final String gatewayInternalSecret;
     private final List<RouteRule> publicRules;
     private final List<RouteRule> roleRules;
 
-    public JwtAuthFilter(@Value("${services.user-service-url}") String userServiceUrl) {
+    public JwtAuthFilter(
+        @Value("${services.user-service-url}") String userServiceUrl,
+        @Value("${gateway.internal-secret}") String gatewayInternalSecret
+    ) {
         this.webClient = WebClient.builder().baseUrl(userServiceUrl).build();
+        this.gatewayInternalSecret = gatewayInternalSecret;
         PathPatternParser parser = new PathPatternParser();
         this.publicRules = List.of(
-            new RouteRule(null, parser.parse("/api/auth/**"), ALL_ROLES),
+            new RouteRule(HttpMethod.POST, parser.parse("/api/auth/register"), ALL_ROLES),
+            new RouteRule(HttpMethod.POST, parser.parse("/api/auth/login"), ALL_ROLES),
+            new RouteRule(HttpMethod.POST, parser.parse("/api/auth/refresh"), ALL_ROLES),
+            new RouteRule(HttpMethod.POST, parser.parse("/api/auth/logout"), ALL_ROLES),
             new RouteRule(HttpMethod.GET, parser.parse("/actuator/health/**"), ALL_ROLES),
             new RouteRule(HttpMethod.GET, parser.parse("/api/gigs/**"), ALL_ROLES),
             new RouteRule(HttpMethod.GET, parser.parse("/api/categories/**"), ALL_ROLES),
@@ -97,7 +106,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         HttpMethod method = exchange.getRequest().getMethod();
 
         if (HttpMethod.OPTIONS.equals(method) || isPublic(method, path)) {
-            return chain.filter(stripIdentityHeaders(exchange));
+            return chain.filter(addGatewaySecret(stripIdentityHeaders(exchange)));
         }
 
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
@@ -109,6 +118,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
         return webClient.post()
             .uri("/api/auth/validate")
+            .header("x-internal-gateway-secret", gatewayInternalSecret)
             .bodyValue(Map.of("token", token))
             .retrieve()
             .bodyToMono(Map.class)
@@ -121,15 +131,17 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                         return reject(exchange, HttpStatus.FORBIDDEN, "Insufficient permissions");
                     }
 
-                    ServerHttpRequest mutated = stripIdentityHeaders(exchange).getRequest().mutate()
+                    ServerWebExchange sanitized = stripIdentityHeaders(exchange);
+                    ServerHttpRequest mutated = sanitized.getRequest().mutate()
                         .headers(headers -> {
                             headers.set("x-user-id", String.valueOf(data.get("userId")));
                             headers.set("x-user-role", role);
                             headers.set("x-user-email", String.valueOf(data.get("email")));
                             headers.set("x-authenticated-by", "api-gateway");
+                            headers.set("x-internal-gateway-secret", gatewayInternalSecret);
                         })
                         .build();
-                    return chain.filter(exchange.mutate().request(mutated).build());
+                    return chain.filter(sanitized.mutate().request(mutated).build());
                 }
                 return reject(exchange, HttpStatus.UNAUTHORIZED, "Invalid token");
             })
@@ -158,6 +170,13 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     private ServerWebExchange stripIdentityHeaders(ServerWebExchange exchange) {
         ServerHttpRequest request = exchange.getRequest().mutate()
             .headers(headers -> IDENTITY_HEADERS.forEach(headers::remove))
+            .build();
+        return exchange.mutate().request(request).build();
+    }
+
+    private ServerWebExchange addGatewaySecret(ServerWebExchange exchange) {
+        ServerHttpRequest request = exchange.getRequest().mutate()
+            .headers(headers -> headers.set("x-internal-gateway-secret", gatewayInternalSecret))
             .build();
         return exchange.mutate().request(request).build();
     }

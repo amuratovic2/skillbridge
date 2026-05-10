@@ -11,11 +11,7 @@
     "lib": ["es2020", "dom"],
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
-    "baseUrl": ".",
-    "paths": {
-      "@skillbridge/contracts": ["libs/contracts/src/index.ts"],
-      "@skillbridge/shared-config": ["libs/shared-config/src/index.ts"]
-    }
+    "baseUrl": "."
   },
   "exclude": ["node_modules", "tmp"]
 }

@@ -1,6 +1,6 @@
 # SkillBridge
 
-Platforma za digitalne usluge koja povezuje klijente i freelancere. Projekat iz predmeta "Praktikum - Napredne web tehnologije", Elektrotehnički fakultet Sarajevo.
+Platforma za digitalne usluge koja povezuje klijente i freelancere. Projekat iz predmeta "Praktikum - Napredne web tehnologije", Elektrotehnicki fakultet Sarajevo.
 
 ## Tech Stack
 
@@ -14,30 +14,27 @@ Platforma za digitalne usluge koja povezuje klijente i freelancere. Projekat iz 
 
 ```
 apps/
-  web/                            → React frontend (port 4200)
+  web/                            -> React frontend (port 4200)
 services/
-  discovery-service/              → Eureka service discovery (port 8761)
-  api-gateway/                    → Spring Cloud Gateway (port 3000)
-  user-service/                   → Auth, korisnici, profili, portfolio (port 3001)
-  gig-service/                    → Usluge, kategorije, tagovi (port 3002)
-  order-service/                  → Narudžbe, isporuke, ponude (port 3003)
-  communication-service/          → Poruke, recenzije, sporovi (port 3004)
-libs/
-  contracts/                      → Zajednički TypeScript tipovi za frontend
-  shared-config/                  → Konstante i konfiguracija
+  discovery-service/              -> Eureka service discovery (port 8761)
+  api-gateway/                    -> Spring Cloud Gateway (port 3000)
+  user-service/                   -> Auth, korisnici, profili, portfolio (port 3001)
+  gig-service/                    -> Usluge, kategorije, tagovi (port 3002)
+  order-service/                  -> Narudzbe, isporuke, ponude (port 3003)
+  communication-service/          -> Poruke, recenzije, sporovi (port 3004)
 docker/
-  init-schemas.sql                → Inicijalne database scheme
+  init-schemas.sql                -> Inicijalne database sheme
 ```
 
 ## Pokretanje projekta
 
 ### 1. Preduvjeti
 
-- **Java 21** — [download](https://adoptium.net/) ili `brew install openjdk@21` (Mac)
-- **Maven** — [download](https://maven.apache.org/download.cgi) ili `brew install maven` (Mac)
-- **Node.js 20+** — [download](https://nodejs.org/)
-- **pnpm** — `npm install -g pnpm`
-- **Docker** — [download](https://www.docker.com/products/docker-desktop/)
+- **Java 21** - [download](https://adoptium.net/) ili `brew install openjdk@21` (Mac)
+- **Maven** - [download](https://maven.apache.org/download.cgi) ili `brew install maven` (Mac)
+- **Node.js 20+** - [download](https://nodejs.org/)
+- **pnpm** - `npm install -g pnpm`
+- **Docker** - [download](https://www.docker.com/products/docker-desktop/)
 
 ### 2. Pokreni bazu podataka
 
@@ -45,7 +42,7 @@ docker/
 docker compose up -d
 ```
 
-PostgreSQL na portu **5433** (ne dira lokalni Postgres na 5432).
+PostgreSQL je na portu **5433** i ne dira lokalni Postgres na 5432.
 
 ### 3. Instaliraj frontend dependencies
 
@@ -87,7 +84,7 @@ cd services/api-gateway
 mvn spring-boot:run
 ```
 
-Ili koristeći npm skripte (iz root direktorija):
+Ili koristeci npm skripte iz root direktorija:
 
 ```
 npm run dev:discovery
@@ -110,7 +107,7 @@ npm run dev:web
 npm run dev
 ```
 
-Ovo pokreće svih 5 backend servisa i frontend paralelno, sa označenim logovima po boji.
+Ovo pokrece svih 5 backend servisa i frontend paralelno, sa oznacenim logovima po boji.
 
 ### 6. Otvori aplikaciju
 
@@ -122,16 +119,16 @@ Podaci se automatski seeduju pri prvom pokretanju svakog servisa.
 
 Svi nalozi koriste lozinku: `password123`
 
-| Uloga      | Email                   |
-|------------|-------------------------|
-| Admin      | admin@skillbridge.ba    |
-| Freelancer | marija@example.com      |
-| Freelancer | stefan@example.com      |
-| Freelancer | ana@example.com         |
-| Freelancer | emir@example.com        |
-| Freelancer | lejla@example.com       |
-| Klijent    | ahmed@example.com       |
-| Klijent    | nina@example.com        |
+| Uloga      | Email                |
+|------------|----------------------|
+| Admin      | admin@skillbridge.ba |
+| Freelancer | marija@example.com   |
+| Freelancer | stefan@example.com   |
+| Freelancer | ana@example.com      |
+| Freelancer | emir@example.com     |
+| Freelancer | lejla@example.com    |
+| Klijent    | ahmed@example.com    |
+| Klijent    | nina@example.com     |
 
 ## Korisne komande
 
@@ -139,7 +136,6 @@ Svi nalozi koriste lozinku: `password123`
 # Zaustavi bazu
 docker compose down
 
-# Resetuj bazu (briše sve podatke — seeduju se ponovo pri pokretanju)
+# Resetuj bazu (brise sve podatke - seeduju se ponovo pri pokretanju)
 docker compose down -v && docker compose up -d
 ```
-

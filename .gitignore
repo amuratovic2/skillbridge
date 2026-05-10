@@ -60,6 +60,3 @@ vite.config.*.timestamp*
 *.war
 !.mvn/wrapper/maven-wrapper.jar
 *.log
-
-# Prisma generated clients (legacy NestJS)
-**/generated/prisma-client
