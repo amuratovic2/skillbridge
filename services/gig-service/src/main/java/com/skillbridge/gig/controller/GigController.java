@@ -34,6 +34,19 @@ public class GigController {
         return ApiResponse.ok(result);
     }
 
+    @GetMapping
+    public ApiResponse<?> list(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Integer categoryId,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) Integer deliveryTime,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "12") @Min(1) @Max(100) int limit) {
+        return search(q, categoryId, minPrice, maxPrice, deliveryTime, sortBy, page, limit);
+    }
+
     @GetMapping("/search")
     public ApiResponse<?> search(
             @RequestParam(required = false) String q,

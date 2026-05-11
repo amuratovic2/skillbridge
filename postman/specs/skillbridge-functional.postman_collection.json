@@ -1,0 +1,723 @@
+{
+  "info": {
+    "name": "SkillBridge Functional API",
+    "description": "Comprehensive functional collection covering all 80 routes across auth, user, gig, order, communication services. Login request stores tokens in collection variables. Run sequentially or via Newman.\n\nDefault credentials (from seed data): marija@example.com / password123 (FREELANCER), ahmed@example.com / password123 (CLIENT), admin@skillbridge.ba / password123 (ADMIN).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000/api", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "refresh_token", "value": "", "type": "string" },
+    { "key": "current_user_id", "value": "", "type": "string" },
+    { "key": "freelancer_email", "value": "marija@example.com", "type": "string" },
+    { "key": "freelancer_password", "value": "password123", "type": "string" },
+    { "key": "client_email", "value": "ahmed@example.com", "type": "string" },
+    { "key": "client_password", "value": "password123", "type": "string" },
+    { "key": "admin_email", "value": "admin@skillbridge.ba", "type": "string" },
+    { "key": "admin_password", "value": "password123", "type": "string" },
+    { "key": "sample_gig_id", "value": "1", "type": "string" },
+    { "key": "sample_user_id", "value": "2", "type": "string" },
+    { "key": "sample_order_id", "value": "1", "type": "string" },
+    { "key": "sample_category_id", "value": "1", "type": "string" },
+    { "key": "sample_skill_id", "value": "1", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "00 - Setup",
+      "item": [
+        {
+          "name": "Login as Freelancer (captures tokens)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{freelancer_email}}\",\n  \"password\": \"{{freelancer_password}}\"\n}" }
+          },
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "if (json && json.data) {",
+              "  if (json.data.accessToken) pm.collectionVariables.set('access_token', json.data.accessToken);",
+              "  if (json.data.refreshToken) pm.collectionVariables.set('refresh_token', json.data.refreshToken);",
+              "  if (json.data.user && json.data.user.id) pm.collectionVariables.set('current_user_id', json.data.user.id);",
+              "}"
+            ], "type": "text/javascript" }
+          }]
+        },
+        {
+          "name": "Login as Client",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{client_email}}\",\n  \"password\": \"{{client_password}}\"\n}" }
+          }
+        },
+        {
+          "name": "Login as Admin",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 - Auth",
+      "item": [
+        {
+          "name": "POST /auth/register (CLIENT)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth", "register"] },
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"newclient_{{$timestamp}}\",\n  \"email\": \"newclient_{{$timestamp}}@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"CLIENT\",\n  \"firstName\": \"New\",\n  \"lastName\": \"Client\"\n}" }
+          }
+        },
+        {
+          "name": "POST /auth/register (FREELANCER)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth", "register"] },
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"newfreelancer_{{$timestamp}}\",\n  \"email\": \"newfreelancer_{{$timestamp}}@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"FREELANCER\",\n  \"firstName\": \"New\",\n  \"lastName\": \"Freelancer\"\n}" }
+          }
+        },
+        {
+          "name": "[NEG] POST /auth/register (invalid role) → 400",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth", "register"] },
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"bad_{{$timestamp}}\",\n  \"email\": \"bad_{{$timestamp}}@x.com\",\n  \"password\": \"password123\",\n  \"role\": \"NONSENSE\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400 on invalid role', () => pm.response.to.have.status(400));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "[NEG] POST /auth/register (duplicate email) → 409",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth", "register"] },
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"dupe\",\n  \"email\": \"{{freelancer_email}}\",\n  \"password\": \"password123\",\n  \"role\": \"CLIENT\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('409 on duplicate', () => pm.response.to.have.status(409));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "POST /auth/login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{freelancer_email}}\",\n  \"password\": \"{{freelancer_password}}\"\n}" }
+          }
+        },
+        {
+          "name": "[NEG] POST /auth/login (wrong password) → 401",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{freelancer_email}}\",\n  \"password\": \"wrong\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('401 on wrong password', () => pm.response.to.have.status(401));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "POST /auth/refresh",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/refresh", "host": ["{{base_url}}"], "path": ["auth", "refresh"] },
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}" }
+          }
+        },
+        {
+          "name": "POST /auth/logout",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/logout", "host": ["{{base_url}}"], "path": ["auth", "logout"] },
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}" }
+          }
+        },
+        {
+          "name": "POST /auth/validate",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/auth/validate", "host": ["{{base_url}}"], "path": ["auth", "validate"] },
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{access_token}}\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Users",
+      "item": [
+        {
+          "name": "GET /users/me",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/users/me", "host": ["{{base_url}}"], "path": ["users", "me"] }
+          }
+        },
+        {
+          "name": "[NEG] GET /users/me (no auth) → 401",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/users/me", "host": ["{{base_url}}"], "path": ["users", "me"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('401 without auth', () => pm.response.to.have.status(401));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "GET /users/{id}",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/users/{{sample_user_id}}", "host": ["{{base_url}}"], "path": ["users", "{{sample_user_id}}"] }
+          }
+        },
+        {
+          "name": "[NEG] GET /users/99999 → 404",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/users/99999", "host": ["{{base_url}}"], "path": ["users", "99999"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('404 on missing user', () => pm.response.to.have.status(404));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "PATCH /users/me (JSON body)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/users/me", "host": ["{{base_url}}"], "path": ["users", "me"] },
+            "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"Updated\",\n  \"lastName\": \"Name\",\n  \"bio\": \"Updated bio\",\n  \"country\": \"Bosna i Hercegovina\"\n}" }
+          }
+        },
+        {
+          "name": "PATCH /users/me (JSON-Patch)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json-patch+json" }],
+            "url": { "raw": "{{base_url}}/users/me", "host": ["{{base_url}}"], "path": ["users", "me"] },
+            "body": { "mode": "raw", "raw": "[\n  { \"op\": \"replace\", \"path\": \"/bio\", \"value\": \"Patched via JSON-Patch\" }\n]" }
+          }
+        },
+        {
+          "name": "DELETE /users/me",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/users/me", "host": ["{{base_url}}"], "path": ["users", "me"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Skills",
+      "item": [
+        {
+          "name": "GET /skills",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/skills", "host": ["{{base_url}}"], "path": ["skills"] } }
+        },
+        {
+          "name": "POST /skills/batch",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/skills/batch", "host": ["{{base_url}}"], "path": ["skills", "batch"] },
+            "body": { "mode": "raw", "raw": "{ \"ids\": [1, 2, 3] }" }
+          }
+        },
+        {
+          "name": "GET /skills/user/{userId}",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/skills/user/{{sample_user_id}}", "host": ["{{base_url}}"], "path": ["skills", "user", "{{sample_user_id}}"] } }
+        },
+        {
+          "name": "POST /skills/me/{skillId} (add skill to me)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/skills/me/{{sample_skill_id}}", "host": ["{{base_url}}"], "path": ["skills", "me", "{{sample_skill_id}}"] }
+          }
+        },
+        {
+          "name": "PUT /skills/me (replace my skills)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/skills/me", "host": ["{{base_url}}"], "path": ["skills", "me"] },
+            "body": { "mode": "raw", "raw": "{ \"skillIds\": [1, 2, 5] }" }
+          }
+        },
+        {
+          "name": "DELETE /skills/me/{skillId}",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/skills/me/{{sample_skill_id}}", "host": ["{{base_url}}"], "path": ["skills", "me", "{{sample_skill_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Portfolios",
+      "item": [
+        {
+          "name": "GET /portfolios/user/{userId}",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/portfolios/user/{{sample_user_id}}", "host": ["{{base_url}}"], "path": ["portfolios", "user", "{{sample_user_id}}"] } }
+        },
+        {
+          "name": "POST /portfolios",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/portfolios", "host": ["{{base_url}}"], "path": ["portfolios"] },
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Portfolio item via Postman\",\n  \"description\": \"Generated for testing\",\n  \"imageUrl\": null\n}" }
+          }
+        },
+        {
+          "name": "POST /portfolios/batch",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/portfolios/batch", "host": ["{{base_url}}"], "path": ["portfolios", "batch"] },
+            "body": { "mode": "raw", "raw": "{ \"userIds\": [2, 3, 4] }" }
+          }
+        },
+        {
+          "name": "PATCH /portfolios/{id}",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/portfolios/1", "host": ["{{base_url}}"], "path": ["portfolios", "1"] },
+            "body": { "mode": "raw", "raw": "{ \"description\": \"Patched description\" }" }
+          }
+        },
+        {
+          "name": "DELETE /portfolios/{id}",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/portfolios/9999", "host": ["{{base_url}}"], "path": ["portfolios", "9999"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Categories",
+      "item": [
+        {
+          "name": "GET /categories",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": { "raw": "{{base_url}}/categories", "host": ["{{base_url}}"], "path": ["categories"] } }
+        },
+        {
+          "name": "POST /categories (admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/categories", "host": ["{{base_url}}"], "path": ["categories"] },
+            "body": { "mode": "raw", "raw": "{ \"title\": \"Test Category {{$timestamp}}\", \"slug\": \"test-category-{{$timestamp}}\" }" }
+          }
+        },
+        {
+          "name": "GET /categories/{slug}",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": { "raw": "{{base_url}}/categories/graficki-dizajn", "host": ["{{base_url}}"], "path": ["categories", "graficki-dizajn"] } }
+        },
+        {
+          "name": "PATCH /categories/{id}",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/categories/{{sample_category_id}}", "host": ["{{base_url}}"], "path": ["categories", "{{sample_category_id}}"] },
+            "body": { "mode": "raw", "raw": "{ \"title\": \"Updated Title\" }" }
+          }
+        },
+        {
+          "name": "DELETE /categories/{id}",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/categories/9999", "host": ["{{base_url}}"], "path": ["categories", "9999"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Tags",
+      "item": [
+        {
+          "name": "GET /tags",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": { "raw": "{{base_url}}/tags", "host": ["{{base_url}}"], "path": ["tags"] } }
+        },
+        {
+          "name": "GET /tags/popular",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": { "raw": "{{base_url}}/tags/popular?limit=10", "host": ["{{base_url}}"], "path": ["tags", "popular"], "query": [{ "key": "limit", "value": "10" }] } }
+        }
+      ]
+    },
+    {
+      "name": "07 - Gigs",
+      "item": [
+        {
+          "name": "POST /gigs (create)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/gigs", "host": ["{{base_url}}"], "path": ["gigs"] },
+            "body": { "mode": "raw", "raw": "{\n  \"categoryId\": 1,\n  \"title\": \"Test gig {{$timestamp}}\",\n  \"description\": \"Created via Postman\",\n  \"cost\": 75.00,\n  \"deliveryTime\": 5,\n  \"revisionCount\": 2,\n  \"coverImage\": null,\n  \"tags\": [\"Logo\"]\n}" }
+          }
+        },
+        {
+          "name": "GET /gigs/search",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": { "raw": "{{base_url}}/gigs/search?page=1&limit=12", "host": ["{{base_url}}"], "path": ["gigs", "search"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "12" }] } }
+        },
+        {
+          "name": "GET /gigs/search (filtered)",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": { "raw": "{{base_url}}/gigs/search?q=logo&categoryId=1&minPrice=10&maxPrice=200&sortBy=newest", "host": ["{{base_url}}"], "path": ["gigs", "search"], "query": [{ "key": "q", "value": "logo" }, { "key": "categoryId", "value": "1" }, { "key": "minPrice", "value": "10" }, { "key": "maxPrice", "value": "200" }, { "key": "sortBy", "value": "newest" }] } }
+        },
+        {
+          "name": "GET /gigs/featured",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": { "raw": "{{base_url}}/gigs/featured?limit=6", "host": ["{{base_url}}"], "path": ["gigs", "featured"], "query": [{ "key": "limit", "value": "6" }] } }
+        },
+        {
+          "name": "GET /gigs/freelancer/{freelancerId}",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": { "raw": "{{base_url}}/gigs/freelancer/{{sample_user_id}}", "host": ["{{base_url}}"], "path": ["gigs", "freelancer", "{{sample_user_id}}"] } }
+        },
+        {
+          "name": "GET /gigs/{id}",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": { "raw": "{{base_url}}/gigs/{{sample_gig_id}}", "host": ["{{base_url}}"], "path": ["gigs", "{{sample_gig_id}}"] } }
+        },
+        {
+          "name": "[NEG] GET /gigs/99999 → 404",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": { "raw": "{{base_url}}/gigs/99999", "host": ["{{base_url}}"], "path": ["gigs", "99999"] } },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('404 on missing gig', () => pm.response.to.have.status(404));"], "type": "text/javascript" } }]
+        },
+        {
+          "name": "PATCH /gigs/{id}",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/gigs/{{sample_gig_id}}", "host": ["{{base_url}}"], "path": ["gigs", "{{sample_gig_id}}"] },
+            "body": { "mode": "raw", "raw": "{ \"description\": \"Updated description\" }" }
+          }
+        },
+        {
+          "name": "DELETE /gigs/{id}",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/gigs/9999", "host": ["{{base_url}}"], "path": ["gigs", "9999"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Orders",
+      "item": [
+        {
+          "name": "POST /orders (create)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/orders", "host": ["{{base_url}}"], "path": ["orders"] },
+            "body": { "mode": "raw", "raw": "{\n  \"gigId\": {{sample_gig_id}},\n  \"requirements\": \"Test order from Postman\"\n}" }
+          }
+        },
+        {
+          "name": "POST /orders/batch",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/orders/batch", "host": ["{{base_url}}"], "path": ["orders", "batch"] },
+            "body": { "mode": "raw", "raw": "{ \"ids\": [1, 2, 3] }" }
+          }
+        },
+        {
+          "name": "GET /orders/my/buying",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/orders/my/buying", "host": ["{{base_url}}"], "path": ["orders", "my", "buying"] } }
+        },
+        {
+          "name": "GET /orders/my/selling",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/orders/my/selling", "host": ["{{base_url}}"], "path": ["orders", "my", "selling"] } }
+        },
+        {
+          "name": "GET /orders/{id}",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/orders/{{sample_order_id}}", "host": ["{{base_url}}"], "path": ["orders", "{{sample_order_id}}"] } }
+        },
+        {
+          "name": "GET /orders/my/buying/status/{status}",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/orders/my/buying/status/PENDING", "host": ["{{base_url}}"], "path": ["orders", "my", "buying", "status", "PENDING"] } }
+        },
+        {
+          "name": "GET /orders/overdue",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/orders/overdue", "host": ["{{base_url}}"], "path": ["orders", "overdue"] } }
+        },
+        {
+          "name": "GET /orders/statistics/by-status",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/orders/statistics/by-status", "host": ["{{base_url}}"], "path": ["orders", "statistics", "by-status"] } }
+        },
+        {
+          "name": "GET /orders/my/revenue",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/orders/my/revenue", "host": ["{{base_url}}"], "path": ["orders", "my", "revenue"] } }
+        },
+        {
+          "name": "PATCH /orders/{id}/status",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/orders/{{sample_order_id}}/status", "host": ["{{base_url}}"], "path": ["orders", "{{sample_order_id}}", "status"] },
+            "body": { "mode": "raw", "raw": "{ \"status\": \"IN_PROGRESS\" }" }
+          }
+        },
+        {
+          "name": "PATCH /orders/{id} (JSON-Patch)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json-patch+json; charset=UTF-8" }],
+            "url": { "raw": "{{base_url}}/orders/{{sample_order_id}}", "host": ["{{base_url}}"], "path": ["orders", "{{sample_order_id}}"] },
+            "body": { "mode": "raw", "raw": "[\n  { \"op\": \"replace\", \"path\": \"/requirements\", \"value\": \"Updated requirements via Postman\" }\n]" }
+          }
+        },
+        {
+          "name": "POST /orders/{id}/revision",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/orders/{{sample_order_id}}/revision", "host": ["{{base_url}}"], "path": ["orders", "{{sample_order_id}}", "revision"] },
+            "body": { "mode": "raw", "raw": "{ \"reason\": \"Need a small change\" }" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 - Deliveries",
+      "item": [
+        {
+          "name": "POST /deliveries/order/{orderId}",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/deliveries/order/{{sample_order_id}}", "host": ["{{base_url}}"], "path": ["deliveries", "order", "{{sample_order_id}}"] },
+            "body": { "mode": "raw", "raw": "{\n  \"message\": \"Delivery via Postman\",\n  \"fileUrl\": \"https://example.com/file.zip\"\n}" }
+          }
+        },
+        {
+          "name": "GET /deliveries/order/{orderId}",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/deliveries/order/{{sample_order_id}}", "host": ["{{base_url}}"], "path": ["deliveries", "order", "{{sample_order_id}}"] } }
+        },
+        {
+          "name": "GET /deliveries/order/{orderId}/version/{version}",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/deliveries/order/{{sample_order_id}}/version/1", "host": ["{{base_url}}"], "path": ["deliveries", "order", "{{sample_order_id}}", "version", "1"] } }
+        }
+      ]
+    },
+    {
+      "name": "10 - Custom Offers",
+      "item": [
+        {
+          "name": "POST /custom-offers (create)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/custom-offers", "host": ["{{base_url}}"], "path": ["custom-offers"] },
+            "body": { "mode": "raw", "raw": "{\n  \"clientId\": 7,\n  \"title\": \"Custom offer\",\n  \"description\": \"Generated via Postman\",\n  \"price\": 250.00,\n  \"deliveryTime\": 7\n}" }
+          }
+        },
+        {
+          "name": "GET /custom-offers/received",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/custom-offers/received", "host": ["{{base_url}}"], "path": ["custom-offers", "received"] } }
+        },
+        {
+          "name": "GET /custom-offers/sent",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/custom-offers/sent", "host": ["{{base_url}}"], "path": ["custom-offers", "sent"] } }
+        },
+        {
+          "name": "PATCH /custom-offers/{id}/respond",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/custom-offers/1/respond", "host": ["{{base_url}}"], "path": ["custom-offers", "1", "respond"] },
+            "body": { "mode": "raw", "raw": "{ \"accept\": true }" }
+          }
+        },
+        {
+          "name": "PATCH /custom-offers/{id}/withdraw",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{base_url}}/custom-offers/1/withdraw", "host": ["{{base_url}}"], "path": ["custom-offers", "1", "withdraw"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 - Messages",
+      "item": [
+        {
+          "name": "POST /messages (send)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/messages", "host": ["{{base_url}}"], "path": ["messages"] },
+            "body": { "mode": "raw", "raw": "{\n  \"receiverId\": 7,\n  \"content\": \"Hello from Postman\",\n  \"orderId\": null\n}" }
+          }
+        },
+        {
+          "name": "POST /messages/batch",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/messages/batch", "host": ["{{base_url}}"], "path": ["messages", "batch"] },
+            "body": { "mode": "raw", "raw": "{ \"ids\": [1, 2, 3] }" }
+          }
+        },
+        {
+          "name": "GET /messages/conversations",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/messages/conversations", "host": ["{{base_url}}"], "path": ["messages", "conversations"] } }
+        },
+        {
+          "name": "GET /messages/conversation/{otherUserId}",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/messages/conversation/7?page=0&size=20", "host": ["{{base_url}}"], "path": ["messages", "conversation", "7"], "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "20" }] } }
+        },
+        {
+          "name": "GET /messages/order/{orderId}",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/messages/order/{{sample_order_id}}", "host": ["{{base_url}}"], "path": ["messages", "order", "{{sample_order_id}}"] } }
+        },
+        {
+          "name": "PATCH /messages/{id} (JSON-Patch)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json-patch+json" }],
+            "url": { "raw": "{{base_url}}/messages/1", "host": ["{{base_url}}"], "path": ["messages", "1"] },
+            "body": { "mode": "raw", "raw": "[\n  { \"op\": \"replace\", \"path\": \"/isRead\", \"value\": true }\n]" }
+          }
+        },
+        {
+          "name": "PATCH /messages/read/{senderId}",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{base_url}}/messages/read/7", "host": ["{{base_url}}"], "path": ["messages", "read", "7"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 - Notifications",
+      "item": [
+        {
+          "name": "GET /notifications",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/notifications", "host": ["{{base_url}}"], "path": ["notifications"] } }
+        },
+        {
+          "name": "GET /notifications/unread-count",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/notifications/unread-count", "host": ["{{base_url}}"], "path": ["notifications", "unread-count"] } }
+        },
+        {
+          "name": "PATCH /notifications/{id}/read",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{base_url}}/notifications/1/read", "host": ["{{base_url}}"], "path": ["notifications", "1", "read"] }
+          }
+        },
+        {
+          "name": "PATCH /notifications/read-all",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{base_url}}/notifications/read-all", "host": ["{{base_url}}"], "path": ["notifications", "read-all"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 - Reviews",
+      "item": [
+        {
+          "name": "POST /reviews (create)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/reviews", "host": ["{{base_url}}"], "path": ["reviews"] },
+            "body": { "mode": "raw", "raw": "{\n  \"orderId\": {{sample_order_id}},\n  \"revieweeId\": 2,\n  \"rating\": 5,\n  \"comment\": \"Great work via Postman!\"\n}" }
+          }
+        },
+        {
+          "name": "GET /reviews/user/{userId}",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": { "raw": "{{base_url}}/reviews/user/{{sample_user_id}}", "host": ["{{base_url}}"], "path": ["reviews", "user", "{{sample_user_id}}"] } }
+        },
+        {
+          "name": "GET /reviews/order/{orderId}",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/reviews/order/{{sample_order_id}}", "host": ["{{base_url}}"], "path": ["reviews", "order", "{{sample_order_id}}"] } }
+        },
+        {
+          "name": "GET /reviews/rating/{userId}",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": { "raw": "{{base_url}}/reviews/rating/{{sample_user_id}}", "host": ["{{base_url}}"], "path": ["reviews", "rating", "{{sample_user_id}}"] } }
+        }
+      ]
+    },
+    {
+      "name": "14 - Disputes",
+      "item": [
+        {
+          "name": "POST /disputes (create)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/disputes", "host": ["{{base_url}}"], "path": ["disputes"] },
+            "body": { "mode": "raw", "raw": "{\n  \"orderId\": {{sample_order_id}},\n  \"reason\": \"Quality issue\",\n  \"description\": \"Disputed via Postman\"\n}" }
+          }
+        },
+        {
+          "name": "GET /disputes (list)",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/disputes", "host": ["{{base_url}}"], "path": ["disputes"] } }
+        },
+        {
+          "name": "GET /disputes/{id}",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/disputes/1", "host": ["{{base_url}}"], "path": ["disputes", "1"] } }
+        },
+        {
+          "name": "PATCH /disputes/{id}/assign (admin)",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{base_url}}/disputes/1/assign", "host": ["{{base_url}}"], "path": ["disputes", "1", "assign"] }
+          }
+        },
+        {
+          "name": "PATCH /disputes/{id}/resolve (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/disputes/1/resolve", "host": ["{{base_url}}"], "path": ["disputes", "1", "resolve"] },
+            "body": { "mode": "raw", "raw": "{\n  \"resolution\": \"Buyer favored\",\n  \"status\": \"RESOLVED_BUYER\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 - Diagnostics",
+      "item": [
+        {
+          "name": "GET /diagnostics/instance",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/diagnostics/instance", "host": ["{{base_url}}"], "path": ["diagnostics", "instance"] } }
+        },
+        {
+          "name": "GET /diagnostics/user-service-instance",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/diagnostics/user-service-instance", "host": ["{{base_url}}"], "path": ["diagnostics", "user-service-instance"] } }
+        }
+      ]
+    }
+  ]
+}
