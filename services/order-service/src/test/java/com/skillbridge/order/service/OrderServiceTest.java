@@ -172,6 +172,31 @@ class OrderServiceTest {
         assertThat(result.get(1).getSellerId()).isEqualTo(8);
     }
 
+    @Test
+    void batchCreate_publishesSagaAndOrderPlacedPerCartItem() {
+        when(gigClient.getGig(1)).thenReturn(activeGig(1, 5));
+        when(gigClient.getGig(2)).thenReturn(activeGig(2, 8));
+        when(orderRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        CreateOrderRequest req1 = new CreateOrderRequest(); req1.setGigId(1);
+        CreateOrderRequest req2 = new CreateOrderRequest(); req2.setGigId(2);
+
+        orderService.batchCreate(10, List.of(req1, req2));
+
+        // One saga + one lifecycle publish per cart item — every order is
+        // treated identically to a single create.
+        verify(sagaPublisher, times(2)).publishOrderPlaced(any());
+
+        ArgumentCaptor<OrderEvent> captor = ArgumentCaptor.forClass(OrderEvent.class);
+        verify(eventPublisher, times(2)).publishOrderEvent(captor.capture());
+        assertThat(captor.getAllValues())
+            .allSatisfy(ev -> {
+                assertThat(ev.eventType()).isEqualTo(RabbitMQConfig.ORDER_PLACED_KEY);
+                assertThat(ev.newStatus()).isEqualTo("PENDING");
+                assertThat(ev.clientId()).isEqualTo(10);
+            });
+    }
+
     // ── updateStatus() ──────────────────────────────────────────────────────
 
     @Test

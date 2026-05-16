@@ -114,7 +114,24 @@ public class OrderService {
             return order;
         }).toList();
 
-        return orderRepository.saveAll(orders);
+        List<Order> saved = orderRepository.saveAll(orders);
+
+        // Each cart item is treated exactly like a single create: kick off
+        // the gig-validation saga AND publish an order.placed lifecycle
+        // event. Result: N saga round-trips + N notification publishes per
+        // checkout — both visible on the RabbitMQ message-rate chart.
+        for (Order o : saved) {
+            sagaPublisher.publishOrderPlaced(new OrderPlacedEvent(
+                o.getId(), o.getGigId(), o.getClientId(), o.getSellerId(), o.getTotalCost()
+            ));
+            eventPublisher.publishOrderEvent(OrderEvent.of(
+                RabbitMQConfig.ORDER_PLACED_KEY, o.getId(), o.getClientId(),
+                o.getSellerId(), o.getGigId(), null, OrderStatus.PENDING.name(),
+                o.getTotalCost(), clientId, null
+            ));
+        }
+
+        return saved;
     }
 
     public Order findById(Long id) {
