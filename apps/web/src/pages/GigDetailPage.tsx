@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import StarRating from '../components/ui/StarRating';
 import api from '../lib/api';
 
@@ -8,6 +9,7 @@ export default function GigDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const { add: addToCart, items: cartItems } = useCart();
   const [gig, setGig] = useState<any>(null);
   const [freelancer, setFreelancer] = useState<any>(null);
   const [ratingData, setRatingData] = useState({ averageRating: 0, totalReviews: 0 });
@@ -175,6 +177,29 @@ export default function GigDetailPage() {
                 >
                   Naruči sada
                 </button>
+                {cartItems.some((c) => c.gigId === gig.id) ? (
+                  <button
+                    onClick={() => navigate('/cart')}
+                    className="w-full border border-primary-300 text-primary-700 py-3 rounded-lg font-medium hover:bg-primary-50 transition-colors mb-3"
+                  >
+                    U korpi — otvori korpu
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      if (!isAuthenticated) { navigate('/login'); return; }
+                      addToCart({
+                        gigId: gig.id,
+                        title: gig.title,
+                        cost: Number(gig.cost),
+                        deliveryTime: gig.deliveryTime,
+                      });
+                    }}
+                    className="w-full border border-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors mb-3"
+                  >
+                    Dodaj u korpu
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     if (!isAuthenticated) { navigate('/login'); return; }

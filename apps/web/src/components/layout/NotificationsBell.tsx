@@ -1,11 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { notificationsApi, Notification } from '../../lib/orders';
+
+const NAVIGATION_BY_TYPE: Record<string, (refId: number | null) => string | null> = {
+  ORDER_UPDATE: (refId) => (refId ? `/dashboard/orders/${refId}` : '/dashboard/orders'),
+  CUSTOM_OFFER: () => '/dashboard/custom-offers',
+  NEW_MESSAGE: (refId) => (refId ? `/dashboard/orders/${refId}` : '/dashboard/messages'),
+  DISPUTE_UPDATE: (refId) => (refId ? `/dashboard/orders/${refId}` : '/dashboard'),
+  REVIEW_RECEIVED: () => '/dashboard',
+  SYSTEM: () => null,
+};
 
 export default function NotificationsBell() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   const refresh = () => {
     notificationsApi.list({ limit: 15 }).then((r) => setItems(r.data)).catch(() => {});
@@ -75,7 +86,12 @@ export default function NotificationsBell() {
                   key={n.id}
                   onClick={async () => {
                     if (!n.isRead) await notificationsApi.markRead(n.id).catch(() => {});
+                    const target = NAVIGATION_BY_TYPE[n.type]?.(n.referenceId);
                     refresh();
+                    if (target) {
+                      setOpen(false);
+                      navigate(target);
+                    }
                   }}
                   className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 ${
                     n.isRead ? '' : 'bg-primary-50/40'

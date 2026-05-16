@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
+import { CartProvider } from '../context/CartContext';
 import Layout from '../components/layout/Layout';
 import ProtectedRoute from '../components/ProtectedRoute';
 import LandingPage from '../pages/LandingPage';
@@ -18,11 +19,13 @@ import CustomOffersPage from '../pages/CustomOffersPage';
 import OrderStatsPage from '../pages/OrderStatsPage';
 import OverdueOrdersPage from '../pages/OverdueOrdersPage';
 import RevenuePage from '../pages/RevenuePage';
+import CartPage from '../pages/CartPage';
 
 export function App() {
   return (
     <AuthProvider>
-      <Routes>
+      <CartProvider>
+        <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<LandingPage />} />
           <Route path="/gigs" element={<GigListingPage />} />
@@ -110,8 +113,17 @@ export function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/cart"
+            element={
+              <ProtectedRoute>
+                <CartPage />
+              </ProtectedRoute>
+            }
+          />
         </Route>
-      </Routes>
+        </Routes>
+      </CartProvider>
     </AuthProvider>
   );
 }

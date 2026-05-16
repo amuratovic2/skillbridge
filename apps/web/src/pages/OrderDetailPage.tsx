@@ -11,6 +11,10 @@ import {
   ordersApi,
 } from '../lib/orders';
 import AdminOrderTools from './AdminOrderTools';
+import CancelOrderModal from './order/CancelOrderModal';
+import RevisionRequestModal from './order/RevisionRequestModal';
+import DeliverWorkModal from './order/DeliverWorkModal';
+import DeliveryDetailModal from './order/DeliveryDetailModal';
 
 interface Message {
   id: number;
@@ -28,6 +32,10 @@ export default function OrderDetailPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [revisionOpen, setRevisionOpen] = useState(false);
+  const [deliverOpen, setDeliverOpen] = useState(false);
+  const [versionOpen, setVersionOpen] = useState<number | null>(null);
 
   const fetchData = useCallback(() => {
     if (!id) return;
@@ -48,26 +56,6 @@ export default function OrderDetailPage() {
     if (!order) return;
     try {
       await ordersApi.updateStatus(order.id, newStatus);
-      fetchData();
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Greška');
-    }
-  };
-
-  const handleDeliver = async () => {
-    if (!order) return;
-    try {
-      await deliveriesApi.create(order.id, { message: 'Rad je isporučen' });
-      fetchData();
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Greška');
-    }
-  };
-
-  const handleRevision = async () => {
-    if (!order) return;
-    try {
-      await ordersApi.requestRevision(order.id, 'Potrebne su izmjene');
       fetchData();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Greška');
@@ -176,7 +164,7 @@ export default function OrderDetailPage() {
             )}
             {isSeller && ['ACCEPTED', 'IN_PROGRESS', 'REVISION_REQUESTED'].includes(order.status) && (
               <button
-                onClick={handleDeliver}
+                onClick={() => setDeliverOpen(true)}
                 className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700"
               >
                 Isporuči rad
@@ -192,7 +180,7 @@ export default function OrderDetailPage() {
                 </button>
                 {revisionsLeft > 0 && (
                   <button
-                    onClick={handleRevision}
+                    onClick={() => setRevisionOpen(true)}
                     className="border border-orange-300 text-orange-600 px-4 py-2 rounded-lg text-sm hover:bg-orange-50"
                   >
                     Traži reviziju ({revisionsLeft} preostalo)
@@ -203,7 +191,7 @@ export default function OrderDetailPage() {
             {(isClient || isSeller) &&
               ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'REVISION_REQUESTED'].includes(order.status) && (
                 <button
-                  onClick={() => handleStatusChange('CANCELLED')}
+                  onClick={() => setCancelOpen(true)}
                   className="border border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm hover:bg-red-50"
                 >
                   Otkaži
@@ -243,7 +231,12 @@ export default function OrderDetailPage() {
               <h2 className="font-semibold text-gray-900 mb-4">Isporuke</h2>
               <div className="space-y-4">
                 {deliveries.map((delivery) => (
-                  <div key={delivery.id} className="border border-gray-100 rounded-lg p-4">
+                  <button
+                    key={delivery.id}
+                    type="button"
+                    onClick={() => setVersionOpen(delivery.versionNumber)}
+                    className="w-full text-left border border-gray-100 hover:border-primary-300 rounded-lg p-4 transition-colors"
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-medium text-sm">Verzija {delivery.versionNumber}</span>
                       <span className="text-xs text-gray-500">
@@ -251,17 +244,14 @@ export default function OrderDetailPage() {
                       </span>
                     </div>
                     {delivery.message && (
-                      <p className="text-sm text-gray-600">{delivery.message}</p>
+                      <p className="text-sm text-gray-600 line-clamp-2">{delivery.message}</p>
                     )}
-                    {delivery.fileName && delivery.fileUrl && (
-                      <a
-                        href={delivery.fileUrl}
-                        className="text-sm text-primary-600 hover:underline mt-1 inline-block"
-                      >
-                        {delivery.fileName}
-                      </a>
+                    {delivery.fileName && (
+                      <span className="text-xs text-primary-600 mt-1 inline-block">
+                        📎 {delivery.fileName}
+                      </span>
                     )}
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -347,6 +337,46 @@ export default function OrderDetailPage() {
           </div>
         </div>
       </div>
+
+      {cancelOpen && (
+        <CancelOrderModal
+          orderId={order.id}
+          onClose={() => setCancelOpen(false)}
+          onDone={() => {
+            setCancelOpen(false);
+            fetchData();
+          }}
+        />
+      )}
+      {revisionOpen && (
+        <RevisionRequestModal
+          orderId={order.id}
+          revisionsLeft={revisionsLeft}
+          onClose={() => setRevisionOpen(false)}
+          onDone={() => {
+            setRevisionOpen(false);
+            fetchData();
+          }}
+        />
+      )}
+      {deliverOpen && (
+        <DeliverWorkModal
+          orderId={order.id}
+          nextVersion={(deliveries[0]?.versionNumber ?? 0) + 1}
+          onClose={() => setDeliverOpen(false)}
+          onDone={() => {
+            setDeliverOpen(false);
+            fetchData();
+          }}
+        />
+      )}
+      {versionOpen !== null && (
+        <DeliveryDetailModal
+          orderId={order.id}
+          version={versionOpen}
+          onClose={() => setVersionOpen(null)}
+        />
+      )}
     </div>
   );
 }
