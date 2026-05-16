@@ -12,6 +12,7 @@ import com.skillbridge.communication.dto.RemoteUserProfile;
 import com.skillbridge.communication.dto.SendMessageRequest;
 import com.skillbridge.communication.mapper.MessageMapper;
 import com.skillbridge.communication.model.Message;
+import com.skillbridge.communication.model.NotificationType;
 import com.skillbridge.communication.repository.MessageRepository;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -43,6 +44,7 @@ public class MessageService {
     private final ObjectMapper objectMapper;
     private final Validator validator;
     private final UserDirectoryClient userDirectoryClient;
+    private final NotificationService notificationService;
     private final boolean userValidationEnabled;
 
     public MessageService(
@@ -51,6 +53,7 @@ public class MessageService {
         ObjectMapper objectMapper,
         Validator validator,
         UserDirectoryClient userDirectoryClient,
+        NotificationService notificationService,
         @Value("${communication.user-validation.enabled:true}") boolean userValidationEnabled
     ) {
         this.messageRepository = messageRepository;
@@ -58,13 +61,18 @@ public class MessageService {
         this.objectMapper = objectMapper;
         this.validator = validator;
         this.userDirectoryClient = userDirectoryClient;
+        this.notificationService = notificationService;
         this.userValidationEnabled = userValidationEnabled;
     }
 
     @Transactional
     public MessageResponse send(Integer senderId, SendMessageRequest request) {
         validateParticipants(senderId, List.of(request.receiverId()));
-        return MessageMapper.toResponse(messageRepository.save(toMessage(senderId, request)));
+        Message saved = messageRepository.save(toMessage(senderId, request));
+        // Two-sided async: the receiver gets a notification as soon as the
+        // message lands, without the sender blocking on delivery to the UI.
+        notifyMessageReceived(saved);
+        return MessageMapper.toResponse(saved);
     }
 
     @Transactional
@@ -81,9 +89,25 @@ public class MessageService {
             .map(messageRequest -> toMessage(senderId, messageRequest))
             .toList();
 
-        return messageRepository.saveAll(messages).stream()
+        List<Message> saved = messageRepository.saveAll(messages);
+        saved.forEach(this::notifyMessageReceived);
+        return saved.stream()
             .map(MessageMapper::toResponse)
             .toList();
+    }
+
+    private void notifyMessageReceived(Message message) {
+        String preview = message.getContent() == null ? "" : message.getContent();
+        if (preview.length() > 120) {
+            preview = preview.substring(0, 117) + "...";
+        }
+        notificationService.create(
+            message.getReceiverId(),
+            NotificationType.NEW_MESSAGE,
+            "Nova poruka od korisnika #" + message.getSenderId(),
+            preview,
+            message.getOrderId()
+        );
     }
 
     @Transactional(readOnly = true)

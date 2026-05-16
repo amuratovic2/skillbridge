@@ -14,10 +14,26 @@ public class RabbitMQConfig {
     // Exchange that all order-saga messages flow through
     public static final String ORDER_EXCHANGE = "skillbridge.orders";
 
-    // Routing keys
+    // Saga routing keys
     public static final String ORDER_PLACED_KEY   = "order.placed";
     public static final String ORDER_CONFIRMED_KEY = "order.confirmed";
     public static final String ORDER_REJECTED_KEY  = "order.rejected";
+
+    // Lifecycle routing keys – published by order-service, consumed by
+    // communication-service (notifications) and any future subscribers.
+    public static final String ORDER_ACCEPTED_KEY  = "order.accepted";
+    public static final String ORDER_IN_PROGRESS_KEY = "order.in-progress";
+    public static final String ORDER_DELIVERED_KEY = "order.delivered";
+    public static final String ORDER_COMPLETED_KEY = "order.completed";
+    public static final String ORDER_CANCELLED_KEY = "order.cancelled";
+    public static final String ORDER_REVISION_REQUESTED_KEY = "order.revision-requested";
+
+    public static final String CUSTOM_OFFER_SENT_KEY     = "custom-offer.sent";
+    public static final String CUSTOM_OFFER_ACCEPTED_KEY = "custom-offer.accepted";
+    public static final String CUSTOM_OFFER_REJECTED_KEY = "custom-offer.rejected";
+    public static final String CUSTOM_OFFER_WITHDRAWN_KEY = "custom-offer.withdrawn";
+
+    public static final String DELIVERY_CREATED_KEY = "delivery.created";
 
     // Queues
     public static final String GIG_ORDER_EVENTS_QUEUE  = "gig.order-events";      // gig-service listens

@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useState } from 'react';
+import NotificationsBell from './NotificationsBell';
 
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -50,6 +51,7 @@ export default function Navbar() {
                 >
                   Dashboard
                 </Link>
+                <NotificationsBell />
                 <div className="relative">
                   <button
                     onClick={() => setMenuOpen(!menuOpen)}
@@ -81,6 +83,13 @@ export default function Navbar() {
                         onClick={() => setMenuOpen(false)}
                       >
                         Poruke
+                      </Link>
+                      <Link
+                        to="/dashboard/custom-offers"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Prilagođene ponude
                       </Link>
                       <hr className="my-1" />
                       <button

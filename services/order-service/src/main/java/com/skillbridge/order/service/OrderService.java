@@ -1,8 +1,11 @@
 package com.skillbridge.order.service;
 
 import com.skillbridge.order.client.GigClient;
+import com.skillbridge.order.config.RabbitMQConfig;
 import com.skillbridge.order.dto.CreateOrderRequest;
 import com.skillbridge.order.dto.GigDto;
+import com.skillbridge.order.events.OrderEvent;
+import com.skillbridge.order.events.OrderEventPublisher;
 import com.skillbridge.order.mapper.OrderMapper;
 import com.skillbridge.order.model.Order;
 import com.skillbridge.order.model.OrderHistory;
@@ -41,12 +44,15 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final GigClient gigClient;
     private final OrderSagaPublisher sagaPublisher;
+    private final OrderEventPublisher eventPublisher;
 
     public OrderService(OrderRepository orderRepository, GigClient gigClient,
-                        OrderSagaPublisher sagaPublisher) {
+                        OrderSagaPublisher sagaPublisher,
+                        OrderEventPublisher eventPublisher) {
         this.orderRepository = orderRepository;
         this.gigClient = gigClient;
         this.sagaPublisher = sagaPublisher;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -79,6 +85,13 @@ public class OrderService {
         // and reply with order.confirmed or order.rejected
         sagaPublisher.publishOrderPlaced(new OrderPlacedEvent(
             saved.getId(), gigId, clientId, gig.getFreelancerId(), gig.getCost()
+        ));
+
+        // Notify the freelancer that a new order is awaiting confirmation
+        eventPublisher.publishOrderEvent(OrderEvent.of(
+            RabbitMQConfig.ORDER_PLACED_KEY, saved.getId(), clientId,
+            gig.getFreelancerId(), gigId, null, OrderStatus.PENDING.name(),
+            saved.getTotalCost(), clientId, null
         ));
 
         return saved;
@@ -170,7 +183,30 @@ public class OrderService {
         else if (newStatus == OrderStatus.CANCELLED) order.setCancelledAt(LocalDateTime.now());
 
         addHistory(order, userId.longValue(), "STATUS_CHANGE", oldStatus.name(), newStatus.name(), note);
-        return orderRepository.save(order);
+        Order saved = orderRepository.save(order);
+
+        String routingKey = routingKeyFor(newStatus);
+        if (routingKey != null) {
+            eventPublisher.publishOrderEvent(OrderEvent.of(
+                routingKey, saved.getId(), saved.getClientId(), saved.getSellerId(),
+                saved.getGigId(), oldStatus.name(), newStatus.name(),
+                saved.getTotalCost(), userId, note
+            ));
+        }
+
+        return saved;
+    }
+
+    private String routingKeyFor(OrderStatus status) {
+        return switch (status) {
+            case ACCEPTED -> RabbitMQConfig.ORDER_ACCEPTED_KEY;
+            case IN_PROGRESS -> RabbitMQConfig.ORDER_IN_PROGRESS_KEY;
+            case DELIVERED -> RabbitMQConfig.ORDER_DELIVERED_KEY;
+            case COMPLETED -> RabbitMQConfig.ORDER_COMPLETED_KEY;
+            case CANCELLED -> RabbitMQConfig.ORDER_CANCELLED_KEY;
+            case REVISION_REQUESTED -> RabbitMQConfig.ORDER_REVISION_REQUESTED_KEY;
+            default -> null;
+        };
     }
 
     @Transactional
@@ -192,7 +228,16 @@ public class OrderService {
         addHistory(order, clientId.longValue(), "REVISION_REQUESTED",
             OrderStatus.DELIVERED.name(), OrderStatus.REVISION_REQUESTED.name(), message);
 
-        return orderRepository.save(order);
+        Order saved = orderRepository.save(order);
+
+        eventPublisher.publishOrderEvent(OrderEvent.of(
+            RabbitMQConfig.ORDER_REVISION_REQUESTED_KEY, saved.getId(),
+            saved.getClientId(), saved.getSellerId(), saved.getGigId(),
+            OrderStatus.DELIVERED.name(), OrderStatus.REVISION_REQUESTED.name(),
+            saved.getTotalCost(), clientId, message
+        ));
+
+        return saved;
     }
 
     private void validateGigIsActive(GigDto gig) {

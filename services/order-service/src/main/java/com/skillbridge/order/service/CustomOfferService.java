@@ -1,5 +1,8 @@
 package com.skillbridge.order.service;
 
+import com.skillbridge.order.config.RabbitMQConfig;
+import com.skillbridge.order.events.CustomOfferEvent;
+import com.skillbridge.order.events.OrderEventPublisher;
 import com.skillbridge.order.model.CustomOffer;
 import com.skillbridge.order.model.CustomOfferStatus;
 import com.skillbridge.order.repository.CustomOfferRepository;
@@ -15,9 +18,12 @@ import java.util.List;
 public class CustomOfferService {
 
     private final CustomOfferRepository customOfferRepository;
+    private final OrderEventPublisher eventPublisher;
 
-    public CustomOfferService(CustomOfferRepository customOfferRepository) {
+    public CustomOfferService(CustomOfferRepository customOfferRepository,
+                              OrderEventPublisher eventPublisher) {
         this.customOfferRepository = customOfferRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -25,7 +31,15 @@ public class CustomOfferService {
         offer.setSenderId(senderId);
         offer.setStatus(CustomOfferStatus.PENDING);
         offer.setExpiresAt(LocalDateTime.now().plusDays(7));
-        return customOfferRepository.save(offer);
+        CustomOffer saved = customOfferRepository.save(offer);
+
+        eventPublisher.publishCustomOfferEvent(CustomOfferEvent.of(
+            RabbitMQConfig.CUSTOM_OFFER_SENT_KEY, saved.getId(), saved.getSenderId(),
+            saved.getReceiverId(), saved.getGigId(), saved.getTitle(),
+            saved.getPrice(), saved.getStatus().name()
+        ));
+
+        return saved;
     }
 
     public List<CustomOffer> findReceived(Integer userId) {
@@ -54,7 +68,20 @@ public class CustomOfferService {
         }
 
         offer.setStatus(status);
-        return customOfferRepository.save(offer);
+        CustomOffer saved = customOfferRepository.save(offer);
+
+        String routingKey = switch (status) {
+            case ACCEPTED -> RabbitMQConfig.CUSTOM_OFFER_ACCEPTED_KEY;
+            case REJECTED -> RabbitMQConfig.CUSTOM_OFFER_REJECTED_KEY;
+            default -> null;
+        };
+        if (routingKey != null) {
+            eventPublisher.publishCustomOfferEvent(CustomOfferEvent.of(
+                routingKey, saved.getId(), saved.getSenderId(), saved.getReceiverId(),
+                saved.getGigId(), saved.getTitle(), saved.getPrice(), saved.getStatus().name()
+            ));
+        }
+        return saved;
     }
 
     @Transactional
@@ -70,6 +97,14 @@ public class CustomOfferService {
         }
 
         offer.setStatus(CustomOfferStatus.WITHDRAWN);
-        return customOfferRepository.save(offer);
+        CustomOffer saved = customOfferRepository.save(offer);
+
+        eventPublisher.publishCustomOfferEvent(CustomOfferEvent.of(
+            RabbitMQConfig.CUSTOM_OFFER_WITHDRAWN_KEY, saved.getId(), saved.getSenderId(),
+            saved.getReceiverId(), saved.getGigId(), saved.getTitle(),
+            saved.getPrice(), saved.getStatus().name()
+        ));
+
+        return saved;
     }
 }

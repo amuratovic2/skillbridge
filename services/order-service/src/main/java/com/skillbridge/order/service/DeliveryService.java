@@ -1,5 +1,9 @@
 package com.skillbridge.order.service;
 
+import com.skillbridge.order.config.RabbitMQConfig;
+import com.skillbridge.order.events.DeliveryEvent;
+import com.skillbridge.order.events.OrderEvent;
+import com.skillbridge.order.events.OrderEventPublisher;
 import com.skillbridge.order.model.Delivery;
 import com.skillbridge.order.model.Order;
 import com.skillbridge.order.model.OrderHistory;
@@ -19,10 +23,13 @@ public class DeliveryService {
 
     private final DeliveryRepository deliveryRepository;
     private final OrderRepository orderRepository;
+    private final OrderEventPublisher eventPublisher;
 
-    public DeliveryService(DeliveryRepository deliveryRepository, OrderRepository orderRepository) {
+    public DeliveryService(DeliveryRepository deliveryRepository, OrderRepository orderRepository,
+                           OrderEventPublisher eventPublisher) {
         this.deliveryRepository = deliveryRepository;
         this.orderRepository = orderRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -53,7 +60,22 @@ public class DeliveryService {
         order.getHistory().add(history);
 
         orderRepository.save(order);
-        return deliveryRepository.save(delivery);
+        Delivery saved = deliveryRepository.save(delivery);
+
+        eventPublisher.publishDeliveryEvent(DeliveryEvent.created(
+            order.getId(), saved.getId(), order.getClientId(), order.getSellerId(),
+            saved.getVersionNumber(), message
+        ));
+        // Also flag the order as delivered so consumers that bind on order.delivered
+        // receive a single, idempotent signal about the workflow state change.
+        eventPublisher.publishOrderEvent(OrderEvent.of(
+            RabbitMQConfig.ORDER_DELIVERED_KEY, order.getId(), order.getClientId(),
+            order.getSellerId(), order.getGigId(), oldStatus.name(),
+            OrderStatus.DELIVERED.name(), order.getTotalCost(), freelancerId,
+            "Delivery v" + saved.getVersionNumber()
+        ));
+
+        return saved;
     }
 
     public List<Delivery> findByOrderId(Long orderId) {

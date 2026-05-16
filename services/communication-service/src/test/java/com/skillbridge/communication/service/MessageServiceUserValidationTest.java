@@ -31,6 +31,9 @@ class MessageServiceUserValidationTest {
     @Mock
     private UserDirectoryClient userDirectoryClient;
 
+    @Mock
+    private NotificationService notificationService;
+
     private MessageService messageService;
 
     @BeforeEach
@@ -41,6 +44,7 @@ class MessageServiceUserValidationTest {
             new ObjectMapper(),
             Validation.buildDefaultValidatorFactory().getValidator(),
             userDirectoryClient,
+            notificationService,
             true
         );
     }

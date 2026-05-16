@@ -14,6 +14,10 @@ import OrderDetailPage from '../pages/OrderDetailPage';
 import CreateGigPage from '../pages/CreateGigPage';
 import EditGigPage from '../pages/EditGigPage';
 import MessagesPage from '../pages/MessagesPage';
+import CustomOffersPage from '../pages/CustomOffersPage';
+import OrderStatsPage from '../pages/OrderStatsPage';
+import OverdueOrdersPage from '../pages/OverdueOrdersPage';
+import RevenuePage from '../pages/RevenuePage';
 
 export function App() {
   return (
@@ -71,6 +75,38 @@ export function App() {
             element={
               <ProtectedRoute>
                 <MessagesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/custom-offers"
+            element={
+              <ProtectedRoute>
+                <CustomOffersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/stats"
+            element={
+              <ProtectedRoute>
+                <OrderStatsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/overdue"
+            element={
+              <ProtectedRoute>
+                <OverdueOrdersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/revenue"
+            element={
+              <ProtectedRoute roles={['FREELANCER']}>
+                <RevenuePage />
               </ProtectedRoute>
             }
           />

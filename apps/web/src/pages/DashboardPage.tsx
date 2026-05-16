@@ -2,26 +2,113 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
+import { ordersApi } from '../lib/orders';
+import AdminDashboardPage from './AdminDashboardPage';
+
+interface CardDef {
+  to: string;
+  title: string;
+  subtitle: string;
+  iconPath: string;
+  variant?: 'default' | 'danger';
+}
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<any>(null);
   const [stats, setStats] = useState({ orders: 0, rating: 0, reviews: 0 });
 
+  if (user?.role === 'ADMIN') {
+    return <AdminDashboardPage />;
+  }
+
+  const isFreelancer = user?.role === 'FREELANCER';
+
   useEffect(() => {
-    if (user) {
-      api.get(`/users/${user.id}`).then((res) => setProfile(res.data.data)).catch(() => {});
-      api.get(`/reviews/rating/${user.id}`).then((res) => {
+    if (!user) return;
+    api
+      .get(`/reviews/rating/${user.id}`)
+      .then((res) => {
         setStats((s) => ({
           ...s,
           rating: res.data.data.averageRating,
           reviews: res.data.data.totalReviews,
         }));
-      }).catch(() => {});
-    }
-  }, [user]);
+      })
+      .catch(() => {});
 
-  const isFreelancer = user?.role === 'FREELANCER';
+    const orderLoader = isFreelancer ? ordersApi.selling() : ordersApi.buying();
+    orderLoader
+      .then((r) => setStats((s) => ({ ...s, orders: r.meta?.total ?? r.data.length })))
+      .catch(() => {});
+  }, [user, isFreelancer]);
+
+  const cards: CardDef[] = [
+    {
+      to: '/dashboard/orders',
+      title: 'Moje narudžbe',
+      subtitle: 'Pregledajte status narudžbi',
+      iconPath:
+        'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
+    },
+    {
+      to: '/dashboard/messages',
+      title: 'Poruke',
+      subtitle: 'Komunikacija sa korisnicima',
+      iconPath:
+        'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
+    },
+    {
+      to: '/dashboard/custom-offers',
+      title: 'Prilagođene ponude',
+      subtitle: isFreelancer ? 'Šaljite i pratite ponude' : 'Pregledajte primljene ponude',
+      iconPath:
+        'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+    },
+    {
+      to: '/dashboard/stats',
+      title: 'Statistika narudžbi',
+      subtitle: 'Pregled po statusu',
+      iconPath: 'M3 3v18h18M7 16V8m4 8V12m4 4V6',
+    },
+    {
+      to: '/dashboard/overdue',
+      title: 'Probijeni rokovi',
+      subtitle: 'Narudžbe sa kašnjenjem',
+      iconPath:
+        'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+      variant: 'danger',
+    },
+    ...(isFreelancer
+      ? ([
+          {
+            to: '/dashboard/gigs/create',
+            title: 'Kreiraj uslugu',
+            subtitle: 'Objavi novu uslugu',
+            iconPath: 'M12 4v16m8-8H4',
+          },
+          {
+            to: '/dashboard/revenue',
+            title: 'Moja zarada',
+            subtitle: 'Pregled prihoda',
+            iconPath:
+              'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1',
+          },
+          {
+            to: `/freelancer/${user?.id}`,
+            title: 'Moj profil',
+            subtitle: 'Pogledajte javni profil',
+            iconPath: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
+          },
+        ] as CardDef[])
+      : ([
+          {
+            to: '/gigs',
+            title: 'Pretraži usluge',
+            subtitle: 'Pronađite freelancera',
+            iconPath: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+          },
+        ] as CardDef[])),
+  ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -51,68 +138,27 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Quick Links */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Link
-          to="/dashboard/orders"
-          className="bg-white border border-gray-200 rounded-xl p-6 hover:border-primary-300 hover:shadow-sm transition-all"
-        >
-          <svg className="w-8 h-8 text-primary-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-          <h3 className="font-medium text-gray-900">Moje narudžbe</h3>
-          <p className="text-sm text-gray-500 mt-1">Pregledajte status narudžbi</p>
-        </Link>
-
-        <Link
-          to="/dashboard/messages"
-          className="bg-white border border-gray-200 rounded-xl p-6 hover:border-primary-300 hover:shadow-sm transition-all"
-        >
-          <svg className="w-8 h-8 text-primary-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-          <h3 className="font-medium text-gray-900">Poruke</h3>
-          <p className="text-sm text-gray-500 mt-1">Komunikacija sa korisnicima</p>
-        </Link>
-
-        {isFreelancer && (
-          <>
-            <Link
-              to="/dashboard/gigs/create"
-              className="bg-white border border-gray-200 rounded-xl p-6 hover:border-primary-300 hover:shadow-sm transition-all"
-            >
-              <svg className="w-8 h-8 text-primary-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              <h3 className="font-medium text-gray-900">Kreiraj uslugu</h3>
-              <p className="text-sm text-gray-500 mt-1">Objavi novu uslugu</p>
-            </Link>
-
-            <Link
-              to={`/freelancer/${user?.id}`}
-              className="bg-white border border-gray-200 rounded-xl p-6 hover:border-primary-300 hover:shadow-sm transition-all"
-            >
-              <svg className="w-8 h-8 text-primary-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <h3 className="font-medium text-gray-900">Moj profil</h3>
-              <p className="text-sm text-gray-500 mt-1">Pogledajte javni profil</p>
-            </Link>
-          </>
-        )}
-
-        {!isFreelancer && (
+        {cards.map((c) => (
           <Link
-            to="/gigs"
+            key={c.to}
+            to={c.to}
             className="bg-white border border-gray-200 rounded-xl p-6 hover:border-primary-300 hover:shadow-sm transition-all"
           >
-            <svg className="w-8 h-8 text-primary-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <svg
+              className={`w-8 h-8 mb-3 ${
+                c.variant === 'danger' ? 'text-red-500' : 'text-primary-600'
+              }`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={c.iconPath} />
             </svg>
-            <h3 className="font-medium text-gray-900">Pretraži usluge</h3>
-            <p className="text-sm text-gray-500 mt-1">Pronađite freelancera</p>
+            <h3 className="font-medium text-gray-900">{c.title}</h3>
+            <p className="text-sm text-gray-500 mt-1">{c.subtitle}</p>
           </Link>
-        )}
+        ))}
       </div>
     </div>
   );
