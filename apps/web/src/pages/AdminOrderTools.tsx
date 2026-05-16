@@ -81,9 +81,6 @@ export default function AdminOrderTools({ order, onChange }: Props) {
         <span className="text-sm font-medium text-amber-900">
           Admin alati {open ? '▾' : '▸'}
         </span>
-        <span className="text-xs text-amber-700">
-          PATCH /orders/{order.id} · PATCH /orders/{order.id}/status
-        </span>
       </button>
 
       {open && (
