@@ -1,7 +1,7 @@
 package com.skillbridge.order.repository;
 
 import com.skillbridge.order.model.CustomOffer;
-import com.skillbridge.order.model.enums.OfferStatus;
+import com.skillbridge.order.model.OfferStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
