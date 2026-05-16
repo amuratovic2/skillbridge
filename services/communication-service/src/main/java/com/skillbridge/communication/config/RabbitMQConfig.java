@@ -9,6 +9,7 @@ import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,10 +23,14 @@ import org.springframework.context.annotation.Configuration;
 public class RabbitMQConfig {
 
     public static final String ORDER_EXCHANGE = "skillbridge.orders";
+    public static final String MESSAGE_EXCHANGE = "skillbridge.messages";
 
     public static final String ORDER_NOTIFICATIONS_QUEUE = "communication.order-notifications";
     public static final String OFFER_NOTIFICATIONS_QUEUE = "communication.offer-notifications";
     public static final String DELIVERY_NOTIFICATIONS_QUEUE = "communication.delivery-notifications";
+    public static final String MESSAGE_RECEIVED_QUEUE = "communication.messages-received";
+
+    public static final String MESSAGE_SENT_KEY = "message.sent";
 
     @Bean
     TopicExchange orderExchange() {
@@ -63,8 +68,30 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    TopicExchange messageExchange() {
+        return ExchangeBuilder.topicExchange(MESSAGE_EXCHANGE).durable(true).build();
+    }
+
+    @Bean
+    Queue messageReceivedQueue() {
+        return QueueBuilder.durable(MESSAGE_RECEIVED_QUEUE).build();
+    }
+
+    @Bean
+    Binding messageReceivedBinding(Queue messageReceivedQueue, TopicExchange messageExchange) {
+        return BindingBuilder.bind(messageReceivedQueue).to(messageExchange).with("message.*");
+    }
+
+    @Bean
     Jackson2JsonMessageConverter jsonMessageConverter() {
         return new Jackson2JsonMessageConverter();
+    }
+
+    @Bean
+    RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, Jackson2JsonMessageConverter converter) {
+        RabbitTemplate template = new RabbitTemplate(connectionFactory);
+        template.setMessageConverter(converter);
+        return template;
     }
 
     @Bean

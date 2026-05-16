@@ -11,8 +11,9 @@ import com.skillbridge.communication.dto.PageResponse;
 import com.skillbridge.communication.dto.RemoteUserProfile;
 import com.skillbridge.communication.dto.SendMessageRequest;
 import com.skillbridge.communication.mapper.MessageMapper;
+import com.skillbridge.communication.messaging.MessageEventPublisher;
+import com.skillbridge.communication.messaging.MessageSentEvent;
 import com.skillbridge.communication.model.Message;
-import com.skillbridge.communication.model.NotificationType;
 import com.skillbridge.communication.repository.MessageRepository;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -44,7 +45,7 @@ public class MessageService {
     private final ObjectMapper objectMapper;
     private final Validator validator;
     private final UserDirectoryClient userDirectoryClient;
-    private final NotificationService notificationService;
+    private final MessageEventPublisher messageEventPublisher;
     private final boolean userValidationEnabled;
 
     public MessageService(
@@ -53,7 +54,7 @@ public class MessageService {
         ObjectMapper objectMapper,
         Validator validator,
         UserDirectoryClient userDirectoryClient,
-        NotificationService notificationService,
+        MessageEventPublisher messageEventPublisher,
         @Value("${communication.user-validation.enabled:true}") boolean userValidationEnabled
     ) {
         this.messageRepository = messageRepository;
@@ -61,7 +62,7 @@ public class MessageService {
         this.objectMapper = objectMapper;
         this.validator = validator;
         this.userDirectoryClient = userDirectoryClient;
-        this.notificationService = notificationService;
+        this.messageEventPublisher = messageEventPublisher;
         this.userValidationEnabled = userValidationEnabled;
     }
 
@@ -69,9 +70,10 @@ public class MessageService {
     public MessageResponse send(Integer senderId, SendMessageRequest request) {
         validateParticipants(senderId, List.of(request.receiverId()));
         Message saved = messageRepository.save(toMessage(senderId, request));
-        // Two-sided async: the receiver gets a notification as soon as the
-        // message lands, without the sender blocking on delivery to the UI.
-        notifyMessageReceived(saved);
+        // Two-sided async: every send hops through RabbitMQ so the broker's
+        // rate chart spikes on publish AND on the consumer ack — the receiver
+        // picks the notification up on the consume side.
+        publishMessageSent(saved);
         return MessageMapper.toResponse(saved);
     }
 
@@ -90,24 +92,24 @@ public class MessageService {
             .toList();
 
         List<Message> saved = messageRepository.saveAll(messages);
-        saved.forEach(this::notifyMessageReceived);
+        saved.forEach(this::publishMessageSent);
         return saved.stream()
             .map(MessageMapper::toResponse)
             .toList();
     }
 
-    private void notifyMessageReceived(Message message) {
+    private void publishMessageSent(Message message) {
         String preview = message.getContent() == null ? "" : message.getContent();
         if (preview.length() > 120) {
             preview = preview.substring(0, 117) + "...";
         }
-        notificationService.create(
+        messageEventPublisher.publishMessageSent(MessageSentEvent.of(
+            message.getId(),
+            message.getSenderId(),
             message.getReceiverId(),
-            NotificationType.NEW_MESSAGE,
-            "Nova poruka od korisnika #" + message.getSenderId(),
-            preview,
-            message.getOrderId()
-        );
+            message.getOrderId(),
+            preview
+        ));
     }
 
     @Transactional(readOnly = true)

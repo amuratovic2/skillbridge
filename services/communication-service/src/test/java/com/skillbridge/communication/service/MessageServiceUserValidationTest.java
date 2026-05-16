@@ -3,6 +3,7 @@ package com.skillbridge.communication.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.skillbridge.communication.dto.RemoteUserProfile;
 import com.skillbridge.communication.dto.SendMessageRequest;
+import com.skillbridge.communication.messaging.MessageEventPublisher;
 import com.skillbridge.communication.model.Message;
 import com.skillbridge.communication.repository.MessageRepository;
 import jakarta.validation.Validation;
@@ -32,7 +33,7 @@ class MessageServiceUserValidationTest {
     private UserDirectoryClient userDirectoryClient;
 
     @Mock
-    private NotificationService notificationService;
+    private MessageEventPublisher messageEventPublisher;
 
     private MessageService messageService;
 
@@ -44,7 +45,7 @@ class MessageServiceUserValidationTest {
             new ObjectMapper(),
             Validation.buildDefaultValidatorFactory().getValidator(),
             userDirectoryClient,
-            notificationService,
+            messageEventPublisher,
             true
         );
     }

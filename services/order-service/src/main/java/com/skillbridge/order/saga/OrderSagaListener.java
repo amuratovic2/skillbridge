@@ -22,8 +22,10 @@ import java.time.LocalDateTime;
 /**
  * Listens to saga result events from gig-service.
  *
- * order.confirmed → set order ACCEPTED   (both local transactions succeeded – saga is final)
- * order.rejected  → set order CANCELLED  (compensating transaction – gig was unavailable)
+ * order.confirmed → leave order PENDING (gig is valid; the freelancer
+ *                   manually accepts it via PATCH /orders/{id}/status)
+ * order.rejected  → set order CANCELLED (compensating transaction – gig
+ *                   was unavailable)
  */
 @Component
 public class OrderSagaListener {
@@ -60,32 +62,28 @@ public class OrderSagaListener {
                 return;
             }
 
-            String routingKey;
-            String note;
             if (result.confirmed()) {
-                // Gig-service confirmed the order – both local transactions succeeded
-                order.setStatus(OrderStatus.ACCEPTED);
-                note = "Gig potvrđen – narudžba aktivna";
-                addHistory(order, "SAGA_CONFIRMED", OrderStatus.PENDING, OrderStatus.ACCEPTED, note);
-                routingKey = RabbitMQConfig.ORDER_ACCEPTED_KEY;
-                log.info("Saga COMPLETED: orderId={} → ACCEPTED", result.orderId());
+                // Gig validated. Order stays PENDING until the freelancer
+                // explicitly accepts it from the UI.
+                addHistory(order, "SAGA_CONFIRMED", OrderStatus.PENDING, OrderStatus.PENDING,
+                    "Gig potvrđen – čeka prihvat freelancera");
+                orderRepository.save(order);
+                log.info("Saga VALIDATED: orderId={} → remains PENDING", result.orderId());
             } else {
                 // Compensating transaction: gig was unavailable or inactive
+                String note = "Gig nedostupan – narudžba otkazana: " + result.reason();
                 order.setStatus(OrderStatus.CANCELLED);
                 order.setCancelledAt(LocalDateTime.now());
-                note = "Gig nedostupan – narudžba otkazana: " + result.reason();
                 addHistory(order, "SAGA_COMPENSATED", OrderStatus.PENDING, OrderStatus.CANCELLED, note);
-                routingKey = RabbitMQConfig.ORDER_CANCELLED_KEY;
+                orderRepository.save(order);
+
+                eventPublisher.publishOrderEvent(OrderEvent.of(
+                    RabbitMQConfig.ORDER_CANCELLED_KEY, order.getId(), order.getClientId(),
+                    order.getSellerId(), order.getGigId(), OrderStatus.PENDING.name(),
+                    OrderStatus.CANCELLED.name(), order.getTotalCost(), null, note
+                ));
                 log.warn("Saga COMPENSATED: orderId={} → CANCELLED, reason={}", result.orderId(), result.reason());
             }
-
-            orderRepository.save(order);
-
-            eventPublisher.publishOrderEvent(OrderEvent.of(
-                routingKey, order.getId(), order.getClientId(), order.getSellerId(),
-                order.getGigId(), OrderStatus.PENDING.name(), order.getStatus().name(),
-                order.getTotalCost(), null, note
-            ));
 
             channel.basicAck(deliveryTag, false);
 

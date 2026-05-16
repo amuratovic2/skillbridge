@@ -9,6 +9,7 @@ public class OrderMapper {
         OrderResponse dto = new OrderResponse();
         dto.setId(order.getId());
         dto.setClientId(order.getClientId());
+        dto.setSellerId(order.getSellerId());
         dto.setGigId(order.getGigId());
         dto.setTotalCost(order.getTotalCost());
         dto.setStatus(order.getStatus().name());

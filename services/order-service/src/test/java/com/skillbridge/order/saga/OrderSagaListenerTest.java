@@ -42,19 +42,18 @@ class OrderSagaListenerTest {
     }
 
     @Test
-    void confirmedResult_promotesOrderToAcceptedAndPublishesEvent() throws Exception {
+    void confirmedResult_keepsOrderPendingAndDoesNotPublish() throws Exception {
         Order order = pending(1L);
         when(orderRepository.findWithDetailsById(1L)).thenReturn(Optional.of(order));
 
         listener.handleSagaResult(new OrderSagaResult(1L, true, null), channel, 42L);
 
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.ACCEPTED);
+        // Saga only validates the gig — the order keeps awaiting the freelancer.
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(order.getHistory()).anySatisfy(h ->
+            assertThat(h.getActionType()).isEqualTo("SAGA_CONFIRMED"));
 
-        ArgumentCaptor<OrderEvent> captor = ArgumentCaptor.forClass(OrderEvent.class);
-        verify(eventPublisher).publishOrderEvent(captor.capture());
-        assertThat(captor.getValue().eventType()).isEqualTo(RabbitMQConfig.ORDER_ACCEPTED_KEY);
-        assertThat(captor.getValue().oldStatus()).isEqualTo("PENDING");
-        assertThat(captor.getValue().newStatus()).isEqualTo("ACCEPTED");
+        verify(eventPublisher, never()).publishOrderEvent(any());
         verify(channel).basicAck(42L, false);
     }
 

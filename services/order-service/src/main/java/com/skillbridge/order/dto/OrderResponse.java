@@ -9,6 +9,7 @@ public class OrderResponse {
 
     private Long id;
     private Integer clientId;
+    private Integer sellerId;
     private Integer gigId;
     private BigDecimal totalCost;
     private String status;
@@ -23,6 +24,8 @@ public class OrderResponse {
     public void setId(Long id) { this.id = id; }
     public Integer getClientId() { return clientId; }
     public void setClientId(Integer clientId) { this.clientId = clientId; }
+    public Integer getSellerId() { return sellerId; }
+    public void setSellerId(Integer sellerId) { this.sellerId = sellerId; }
     public Integer getGigId() { return gigId; }
     public void setGigId(Integer gigId) { this.gigId = gigId; }
     public BigDecimal getTotalCost() { return totalCost; }

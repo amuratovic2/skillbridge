@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
 import { ordersApi } from '../lib/orders';
-import AdminDashboardPage from './AdminDashboardPage';
 
 interface CardDef {
   to: string;
@@ -17,11 +16,8 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState({ orders: 0, rating: 0, reviews: 0 });
 
-  if (user?.role === 'ADMIN') {
-    return <AdminDashboardPage />;
-  }
-
   const isFreelancer = user?.role === 'FREELANCER';
+  const isAdmin = user?.role === 'ADMIN';
 
   useEffect(() => {
     if (!user) return;
@@ -42,7 +38,7 @@ export default function DashboardPage() {
       .catch(() => {});
   }, [user, isFreelancer]);
 
-  const cards: CardDef[] = [
+  const baseCards: CardDef[] = [
     {
       to: '/dashboard/orders',
       title: 'Moje narudžbe',
@@ -64,6 +60,31 @@ export default function DashboardPage() {
       iconPath:
         'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
     },
+  ];
+
+  const freelancerCards: CardDef[] = [
+    {
+      to: '/dashboard/gigs/create',
+      title: 'Kreiraj uslugu',
+      subtitle: 'Objavi novu uslugu',
+      iconPath: 'M12 4v16m8-8H4',
+    },
+    {
+      to: '/dashboard/revenue',
+      title: 'Moja zarada',
+      subtitle: 'Pregled prihoda',
+      iconPath:
+        'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1',
+    },
+    {
+      to: `/freelancer/${user?.id ?? ''}`,
+      title: 'Moj profil',
+      subtitle: 'Pogledajte javni profil',
+      iconPath: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
+    },
+  ];
+
+  const adminCards: CardDef[] = [
     {
       to: '/dashboard/stats',
       title: 'Statistika narudžbi',
@@ -78,37 +99,28 @@ export default function DashboardPage() {
         'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
       variant: 'danger',
     },
-    ...(isFreelancer
-      ? ([
-          {
-            to: '/dashboard/gigs/create',
-            title: 'Kreiraj uslugu',
-            subtitle: 'Objavi novu uslugu',
-            iconPath: 'M12 4v16m8-8H4',
-          },
-          {
-            to: '/dashboard/revenue',
-            title: 'Moja zarada',
-            subtitle: 'Pregled prihoda',
-            iconPath:
-              'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1',
-          },
-          {
-            to: `/freelancer/${user?.id}`,
-            title: 'Moj profil',
-            subtitle: 'Pogledajte javni profil',
-            iconPath: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
-          },
-        ] as CardDef[])
-      : ([
-          {
-            to: '/gigs',
-            title: 'Pretraži usluge',
-            subtitle: 'Pronađite freelancera',
-            iconPath: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
-          },
-        ] as CardDef[])),
+    {
+      to: '/gigs',
+      title: 'Pretraži usluge',
+      subtitle: 'Pronađite freelancera',
+      iconPath: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+    },
   ];
+
+  const clientCards: CardDef[] = [
+    {
+      to: '/gigs',
+      title: 'Pretraži usluge',
+      subtitle: 'Pronađite freelancera',
+      iconPath: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+    },
+  ];
+
+  const cards = isFreelancer
+    ? [...baseCards, ...freelancerCards]
+    : isAdmin
+      ? [...baseCards, ...adminCards]
+      : [...baseCards, ...clientCards];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -141,7 +153,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((c) => (
           <Link
-            key={c.to}
+            key={c.to + c.title}
             to={c.to}
             className="bg-white border border-gray-200 rounded-xl p-6 hover:border-primary-300 hover:shadow-sm transition-all"
           >
