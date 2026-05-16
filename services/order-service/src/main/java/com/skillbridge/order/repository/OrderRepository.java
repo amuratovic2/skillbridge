@@ -37,8 +37,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     """)
     List<Order> findOverdueOrders(@Param("now") LocalDateTime now);
 
-    @Query("SELECT COALESCE(SUM(o.totalCost), 0) FROM Order o WHERE o.clientId = :clientId AND o.status = 'COMPLETED'")
-    BigDecimal sumCompletedRevenueByClient(@Param("clientId") Integer clientId);
+    @Query("SELECT COALESCE(SUM(o.totalCost), 0) FROM Order o WHERE o.sellerId = :sellerId AND o.status = 'COMPLETED'")
+    BigDecimal sumCompletedRevenueBySeller(@Param("sellerId") Integer sellerId);
 
     @Query(value = """
         SELECT status, COUNT(*) as count

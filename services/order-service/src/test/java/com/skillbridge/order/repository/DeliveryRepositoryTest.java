@@ -2,7 +2,7 @@ package com.skillbridge.order.repository;
 
 import com.skillbridge.order.model.Delivery;
 import com.skillbridge.order.model.Order;
-import com.skillbridge.order.model.enums.OrderStatus;
+import com.skillbridge.order.model.OrderStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -26,7 +26,7 @@ class DeliveryRepositoryTest {
         order.setClientId(1);
         order.setGigId(1);
         order.setTotalCost(new BigDecimal("100"));
-        order.setStatus(OrderStatus.CREATED);
+        order.setStatus(OrderStatus.PENDING);
 
         Order savedOrder = orderRepository.save(order);
 

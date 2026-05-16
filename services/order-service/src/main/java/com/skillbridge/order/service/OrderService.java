@@ -163,8 +163,8 @@ public class OrderService {
         return orderRepository.findOverdueOrders(LocalDateTime.now());
     }
 
-    public BigDecimal getTotalRevenue(Integer clientId) {
-        return orderRepository.sumCompletedRevenueByClient(clientId);
+    public BigDecimal getTotalRevenue(Integer sellerId) {
+        return orderRepository.sumCompletedRevenueBySeller(sellerId);
     }
 
     public Map<String, Long> getStatusStatistics() {

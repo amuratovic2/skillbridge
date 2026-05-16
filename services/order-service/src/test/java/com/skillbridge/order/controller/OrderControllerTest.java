@@ -3,7 +3,6 @@ package com.skillbridge.order.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.skillbridge.order.dto.CreateOrderRequest;
 import com.skillbridge.order.dto.OrderStatusUpdateRequest;
-import com.skillbridge.order.mapper.OrderMapper;
 import com.skillbridge.order.model.Order;
 import com.skillbridge.order.model.OrderStatus;
 import com.skillbridge.order.service.OrderPatchService;
@@ -11,7 +10,7 @@ import com.skillbridge.order.service.OrderService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -35,16 +34,17 @@ class OrderControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @MockitoBean
     private OrderService orderService;
 
-    @MockBean
+    @MockitoBean
     private OrderPatchService orderPatchService;
 
     private Order fakeOrder() {
         Order o = new Order();
         o.setClientId(1);
         o.setGigId(2);
+        o.setSellerId(5);
         o.setTotalCost(new BigDecimal("100"));
         o.setStatus(OrderStatus.PENDING);
         o.setMaxRevisions(3);
@@ -55,12 +55,8 @@ class OrderControllerTest {
     void createOrder_success() throws Exception {
         CreateOrderRequest req = new CreateOrderRequest();
         req.setGigId(2);
-        req.setTotalCost(new BigDecimal("100"));
-        req.setMaxRevisions(3);
-        req.setDeliveryDays(7);
 
-        when(orderService.create(anyInt(), anyInt(), any(), anyInt(), anyInt()))
-            .thenReturn(fakeOrder());
+        when(orderService.create(anyInt(), anyInt())).thenReturn(fakeOrder());
 
         mockMvc.perform(post("/orders")
                 .header("x-user-id", 1)
@@ -73,9 +69,6 @@ class OrderControllerTest {
     @Test
     void createOrder_missingGigId_returns400() throws Exception {
         CreateOrderRequest req = new CreateOrderRequest();
-        req.setTotalCost(new BigDecimal("100"));
-        req.setMaxRevisions(3);
-        req.setDeliveryDays(7);
 
         mockMvc.perform(post("/orders")
                 .header("x-user-id", 1)
@@ -86,24 +79,8 @@ class OrderControllerTest {
     }
 
     @Test
-    void createOrder_negativeTotalCost_returns400() throws Exception {
-        CreateOrderRequest req = new CreateOrderRequest();
-        req.setGigId(2);
-        req.setTotalCost(new BigDecimal("-50"));
-        req.setMaxRevisions(3);
-        req.setDeliveryDays(7);
-
-        mockMvc.perform(post("/orders")
-                .header("x-user-id", 1)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(req)))
-            .andExpect(status().isBadRequest());
-    }
-
-    @Test
     void findById_success() throws Exception {
-        Order o = fakeOrder();
-        when(orderService.findById(1L)).thenReturn(o);
+        when(orderService.findById(1L)).thenReturn(fakeOrder());
 
         mockMvc.perform(get("/orders/1"))
             .andExpect(status().isOk())
@@ -113,7 +90,10 @@ class OrderControllerTest {
     @Test
     void getMyBuyingOrders_returnsPaginatedResult() throws Exception {
         when(orderService.findByClient(anyInt(), anyInt(), anyInt(), anyString(), anyString()))
-            .thenReturn(Map.of("data", List.of(), "meta", Map.of("total", 0, "page", 1, "limit", 10, "totalPages", 0)));
+            .thenReturn(Map.of(
+                "data", List.of(),
+                "meta", Map.of("total", 0, "page", 1, "limit", 10, "totalPages", 0)
+            ));
 
         mockMvc.perform(get("/orders/my/buying")
                 .header("x-user-id", 1)
@@ -127,13 +107,15 @@ class OrderControllerTest {
     void updateStatus_success() throws Exception {
         Order o = fakeOrder();
         o.setStatus(OrderStatus.ACCEPTED);
-        when(orderService.updateStatus(anyLong(), anyInt(), any(), any())).thenReturn(o);
+        when(orderService.updateStatus(anyLong(), anyInt(), anyString(), any(OrderStatus.class), any()))
+            .thenReturn(o);
 
         OrderStatusUpdateRequest req = new OrderStatusUpdateRequest();
         req.setStatus("ACCEPTED");
 
         mockMvc.perform(patch("/orders/1/status")
                 .header("x-user-id", 1)
+                .header("x-user-role", "USER")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(req)))
             .andExpect(status().isOk());
@@ -143,6 +125,7 @@ class OrderControllerTest {
     void updateStatus_invalidStatus_returns400() throws Exception {
         mockMvc.perform(patch("/orders/1/status")
                 .header("x-user-id", 1)
+                .header("x-user-role", "USER")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"status\": \"INVALID_STATUS\"}"))
             .andExpect(status().isBadRequest());
