@@ -197,15 +197,6 @@ export default function OrderDetailPage() {
                   Otkaži
                 </button>
               )}
-            {(isClient || isSeller || isAdmin) &&
-              ['IN_PROGRESS', 'DELIVERED', 'REVISION_REQUESTED'].includes(order.status) && (
-                <button
-                  onClick={() => handleStatusChange('DISPUTED')}
-                  className="border border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm hover:bg-red-50"
-                >
-                  Prijavi spor
-                </button>
-              )}
             {isAdmin && inDispute && (
               <>
                 <button
