@@ -13,6 +13,7 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.util.pattern.PathPattern;
 import org.springframework.web.util.pattern.PathPatternParser;
@@ -20,9 +21,18 @@ import org.springframework.http.server.PathContainer;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
+import java.security.PrivateKey;
+import java.security.Signature;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.time.Instant;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.Set;
+import java.net.URI;
 
 @Component
 public class JwtAuthFilter implements GlobalFilter, Ordered {
@@ -32,8 +42,17 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         "x-user-role",
         "x-user-email",
         "x-authenticated-by",
-        "x-internal-gateway-secret"
+        "x-internal-gateway-secret",
+        "x-internal-gateway-id",
+        "x-internal-gateway-timestamp",
+        "x-internal-gateway-nonce",
+        "x-internal-gateway-signature"
     );
+
+    private static final String GATEWAY_ID_HEADER = "x-internal-gateway-id";
+    private static final String TIMESTAMP_HEADER = "x-internal-gateway-timestamp";
+    private static final String NONCE_HEADER = "x-internal-gateway-nonce";
+    private static final String SIGNATURE_HEADER = "x-internal-gateway-signature";
 
     private static final Set<String> ALL_ROLES = Set.of("CLIENT", "FREELANCER", "ADMIN");
     private static final Set<String> FREELANCER_ROLES = Set.of("FREELANCER", "ADMIN");
@@ -42,15 +61,21 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
     private final WebClient webClient;
     private final String gatewayInternalSecret;
+    private final String gatewayId;
+    private final Optional<PrivateKey> signingKey;
     private final List<RouteRule> publicRules;
     private final List<RouteRule> roleRules;
 
     public JwtAuthFilter(
         @Value("${services.user-service-url}") String userServiceUrl,
-        @Value("${gateway.internal-secret}") String gatewayInternalSecret
+        @Value("${gateway.internal-secret}") String gatewayInternalSecret,
+        @Value("${gateway.signature.gateway-id:api-gateway}") String gatewayId,
+        @Value("${gateway.signature.private-key:}") String signingPrivateKey
     ) {
         this.webClient = WebClient.builder().baseUrl(userServiceUrl).build();
         this.gatewayInternalSecret = gatewayInternalSecret;
+        this.gatewayId = gatewayId;
+        this.signingKey = loadPrivateKey(signingPrivateKey);
         PathPatternParser parser = new PathPatternParser();
         this.publicRules = List.of(
             new RouteRule(HttpMethod.POST, parser.parse("/api/auth/register"), ALL_ROLES),
@@ -119,7 +144,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
         return webClient.post()
             .uri("/api/auth/validate")
-            .header("x-internal-gateway-secret", gatewayInternalSecret)
+            .headers(headers -> addInternalAuthHeaders(headers, HttpMethod.POST.name(), "/api/auth/validate"))
             .bodyValue(Map.of("token", token))
             .retrieve()
             .bodyToMono(Map.class)
@@ -139,7 +164,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                             headers.set("x-user-role", role);
                             headers.set("x-user-email", String.valueOf(data.get("email")));
                             headers.set("x-authenticated-by", "api-gateway");
-                            headers.set("x-internal-gateway-secret", gatewayInternalSecret);
+                            addInternalAuthHeaders(headers, method.name(), pathWithQuery(exchange.getRequest().getURI()));
                         })
                         .build();
                     return chain.filter(sanitized.mutate().request(mutated).build());
@@ -148,6 +173,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             })
             .onErrorResume(ResponseStatusException.class,
                 e -> reject(exchange, HttpStatus.UNAUTHORIZED, "Invalid token"))
+            .onErrorResume(WebClientRequestException.class,
+                e -> reject(exchange, HttpStatus.SERVICE_UNAVAILABLE, "user-service not available"))
             .onErrorResume(e -> reject(exchange, HttpStatus.UNAUTHORIZED, "Token validation failed"));
     }
 
@@ -177,9 +204,62 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
     private ServerWebExchange addGatewaySecret(ServerWebExchange exchange) {
         ServerHttpRequest request = exchange.getRequest().mutate()
-            .headers(headers -> headers.set("x-internal-gateway-secret", gatewayInternalSecret))
+            .headers(headers -> addInternalAuthHeaders(
+                headers,
+                exchange.getRequest().getMethod().name(),
+                pathWithQuery(exchange.getRequest().getURI())
+            ))
             .build();
         return exchange.mutate().request(request).build();
+    }
+
+    private void addInternalAuthHeaders(HttpHeaders headers, String method, String path) {
+        headers.set("x-internal-gateway-secret", gatewayInternalSecret);
+        signingKey.ifPresent(privateKey -> {
+            String timestamp = String.valueOf(Instant.now().getEpochSecond());
+            String nonce = UUID.randomUUID().toString();
+            headers.set(GATEWAY_ID_HEADER, gatewayId);
+            headers.set(TIMESTAMP_HEADER, timestamp);
+            headers.set(NONCE_HEADER, nonce);
+            headers.set(SIGNATURE_HEADER, sign(privateKey, canonicalPayload(method, path, timestamp, nonce)));
+        });
+    }
+
+    private String sign(PrivateKey privateKey, String payload) {
+        try {
+            Signature signature = Signature.getInstance("SHA256withRSA");
+            signature.initSign(privateKey);
+            signature.update(payload.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(signature.sign());
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to sign internal gateway request", ex);
+        }
+    }
+
+    private Optional<PrivateKey> loadPrivateKey(String configuredKey) {
+        if (configuredKey == null || configuredKey.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            String normalized = configuredKey
+                .replace("-----BEGIN PRIVATE KEY-----", "")
+                .replace("-----END PRIVATE KEY-----", "")
+                .replaceAll("\\s", "");
+            byte[] keyBytes = Base64.getDecoder().decode(normalized);
+            PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(keyBytes);
+            return Optional.of(KeyFactory.getInstance("RSA").generatePrivate(keySpec));
+        } catch (Exception ex) {
+            throw new IllegalStateException("Invalid gateway.signature.private-key", ex);
+        }
+    }
+
+    private String canonicalPayload(String method, String path, String timestamp, String nonce) {
+        return method + "\n" + path + "\n" + timestamp + "\n" + nonce;
+    }
+
+    private String pathWithQuery(URI uri) {
+        String query = uri.getRawQuery();
+        return query == null || query.isBlank() ? uri.getRawPath() : uri.getRawPath() + "?" + query;
     }
 
     private Mono<Void> reject(ServerWebExchange exchange, HttpStatus status, String message) {

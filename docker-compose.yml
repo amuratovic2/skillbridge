@@ -18,6 +18,21 @@ services:
       timeout: 5s
       retries: 5
 
+  skillbridge-db-migrate:
+    image: postgres:16-alpine
+    container_name: skillbridge-db-migrate
+    depends_on:
+      skillbridge-db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: skillbridge123
+    volumes:
+      - ./docker/sync-schema.sql:/docker/schema/sync-schema.sql:ro
+    command: >
+      sh -c "psql -h skillbridge-db -U skillbridge -d skillbridge
+      -v ON_ERROR_STOP=1 -f /docker/schema/sync-schema.sql"
+    restart: "no"
+
   skillbridge-rabbitmq:
     image: rabbitmq:3.13-management-alpine
     container_name: skillbridge-rabbitmq

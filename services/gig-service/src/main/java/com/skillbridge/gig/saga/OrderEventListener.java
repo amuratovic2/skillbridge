@@ -78,6 +78,35 @@ public class OrderEventListener {
         }
     }
 
+    @RabbitListener(queues = RabbitMQConfig.GIG_ORDER_TERMINAL_EVENTS_QUEUE)
+    @Transactional
+    public void handleOrderTerminalEvent(
+        OrderTerminalEvent event,
+        Channel channel,
+        @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag
+    ) throws IOException {
+        log.info("Saga: received terminal order event - orderId={} gigId={}", event.orderId(), event.gigId());
+        try {
+            Gig gig = gigRepository.findById(event.gigId()).orElse(null);
+            if (gig == null) {
+                log.warn("Saga: terminal event for missing gig {} - orderId={}", event.gigId(), event.orderId());
+                channel.basicAck(deliveryTag, false);
+                return;
+            }
+
+            gig.setActiveOrderCount(Math.max(0, gig.getActiveOrderCount() - 1));
+            gigRepository.save(gig);
+
+            log.info("Saga: decremented active order count for gig {} - orderId={}, activeOrders={}",
+                event.gigId(), event.orderId(), gig.getActiveOrderCount());
+            channel.basicAck(deliveryTag, false);
+
+        } catch (Exception e) {
+            log.error("Saga: error handling terminal order event for orderId={}: {}", event.orderId(), e.getMessage());
+            channel.basicNack(deliveryTag, false, true);
+        }
+    }
+
     private void publishResult(Long orderId, boolean confirmed, String reason) {
         String routingKey = confirmed ? RabbitMQConfig.ORDER_CONFIRMED_KEY : RabbitMQConfig.ORDER_REJECTED_KEY;
         OrderSagaResult result = new OrderSagaResult(orderId, confirmed, reason);

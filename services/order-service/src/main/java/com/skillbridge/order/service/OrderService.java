@@ -13,6 +13,7 @@ import com.skillbridge.order.model.OrderStatus;
 import com.skillbridge.order.repository.OrderRepository;
 import com.skillbridge.order.saga.OrderPlacedEvent;
 import com.skillbridge.order.saga.OrderSagaPublisher;
+import com.skillbridge.order.saga.OrderTerminalEvent;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -262,6 +263,27 @@ public class OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "Gig nije dostupan za narudžbu (status: " + gig.getStatus() + ")");
         }
+    }
+
+    private void publishTerminalEventIfNeeded(Order order, OrderStatus oldStatus, OrderStatus newStatus) {
+        if (!countsAsActiveOrder(oldStatus)) {
+            return;
+        }
+
+        OrderTerminalEvent event = new OrderTerminalEvent(order.getId(), order.getGigId());
+        if (newStatus == OrderStatus.CANCELLED) {
+            sagaPublisher.publishOrderCancelled(event);
+        } else if (newStatus == OrderStatus.COMPLETED) {
+            sagaPublisher.publishOrderCompleted(event);
+        }
+    }
+
+    private boolean countsAsActiveOrder(OrderStatus status) {
+        return status == OrderStatus.ACCEPTED
+            || status == OrderStatus.IN_PROGRESS
+            || status == OrderStatus.DELIVERED
+            || status == OrderStatus.REVISION_REQUESTED
+            || status == OrderStatus.DISPUTED;
     }
 
     private void addHistory(Order order, Long userId, String action, String oldStatus, String newStatus, String note) {

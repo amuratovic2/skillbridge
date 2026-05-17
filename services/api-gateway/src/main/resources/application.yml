@@ -57,6 +57,9 @@ services:
 
 gateway:
   internal-secret: ${GATEWAY_INTERNAL_SECRET:skillbridge-dev-gateway-secret}
+  signature:
+    gateway-id: ${GATEWAY_SIGNATURE_GATEWAY_ID:api-gateway}
+    private-key: ${GATEWAY_SIGNATURE_PRIVATE_KEY:}
 
 eureka:
   client:

@@ -15,7 +15,10 @@ public class RabbitMQConfig {
     public static final String ORDER_PLACED_KEY      = "order.placed";
     public static final String ORDER_CONFIRMED_KEY   = "order.confirmed";
     public static final String ORDER_REJECTED_KEY    = "order.rejected";
+    public static final String ORDER_CANCELLED_KEY   = "order.cancelled";
+    public static final String ORDER_COMPLETED_KEY   = "order.completed";
     public static final String GIG_ORDER_EVENTS_QUEUE = "gig.order-events";
+    public static final String GIG_ORDER_TERMINAL_EVENTS_QUEUE = "gig.order-terminal-events";
 
     @Bean
     TopicExchange orderExchange() {
@@ -28,8 +31,23 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    Queue gigOrderTerminalEventsQueue() {
+        return QueueBuilder.durable(GIG_ORDER_TERMINAL_EVENTS_QUEUE).build();
+    }
+
+    @Bean
     Binding gigOrderEventsBinding(Queue gigOrderEventsQueue, TopicExchange orderExchange) {
         return BindingBuilder.bind(gigOrderEventsQueue).to(orderExchange).with(ORDER_PLACED_KEY);
+    }
+
+    @Bean
+    Binding gigOrderCancelledBinding(Queue gigOrderTerminalEventsQueue, TopicExchange orderExchange) {
+        return BindingBuilder.bind(gigOrderTerminalEventsQueue).to(orderExchange).with(ORDER_CANCELLED_KEY);
+    }
+
+    @Bean
+    Binding gigOrderCompletedBinding(Queue gigOrderTerminalEventsQueue, TopicExchange orderExchange) {
+        return BindingBuilder.bind(gigOrderTerminalEventsQueue).to(orderExchange).with(ORDER_COMPLETED_KEY);
     }
 
     @Bean

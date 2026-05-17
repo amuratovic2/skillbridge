@@ -21,4 +21,14 @@ public class OrderSagaPublisher {
         log.info("Saga: publishing order.placed for orderId={} gigId={}", event.orderId(), event.gigId());
         rabbitTemplate.convertAndSend(RabbitMQConfig.ORDER_EXCHANGE, RabbitMQConfig.ORDER_PLACED_KEY, event);
     }
+
+    public void publishOrderCancelled(OrderTerminalEvent event) {
+        log.info("Saga: publishing order.cancelled for orderId={} gigId={}", event.orderId(), event.gigId());
+        rabbitTemplate.convertAndSend(RabbitMQConfig.ORDER_EXCHANGE, RabbitMQConfig.ORDER_CANCELLED_KEY, event);
+    }
+
+    public void publishOrderCompleted(OrderTerminalEvent event) {
+        log.info("Saga: publishing order.completed for orderId={} gigId={}", event.orderId(), event.gigId());
+        rabbitTemplate.convertAndSend(RabbitMQConfig.ORDER_EXCHANGE, RabbitMQConfig.ORDER_COMPLETED_KEY, event);
+    }
 }

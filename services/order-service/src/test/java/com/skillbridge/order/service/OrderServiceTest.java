@@ -296,4 +296,53 @@ class OrderServiceTest {
             .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
                 .isEqualTo(HttpStatus.BAD_REQUEST));
     }
+
+    @Test
+    void updateStatus_cancelledFromAccepted_publishesOrderCancelled() {
+        Order order = savedOrder(10, 1, 5);
+        order.setStatus(OrderStatus.ACCEPTED);
+        when(orderRepository.findWithDetailsById(1L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        ArgumentCaptor<OrderTerminalEvent> eventCaptor = ArgumentCaptor.forClass(OrderTerminalEvent.class);
+
+        Order result = orderService.updateStatus(1L, 10, "CLIENT", OrderStatus.CANCELLED, "Changed plans");
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(result.getCancelledAt()).isNotNull();
+        verify(sagaPublisher).publishOrderCancelled(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().orderId()).isEqualTo(1L);
+        assertThat(eventCaptor.getValue().gigId()).isEqualTo(1);
+        verify(sagaPublisher, never()).publishOrderCompleted(any());
+    }
+
+    @Test
+    void updateStatus_cancelledFromPending_doesNotPublishTerminalEvent() {
+        Order order = savedOrder(10, 1, 5);
+        order.setStatus(OrderStatus.PENDING);
+        when(orderRepository.findWithDetailsById(1L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        orderService.updateStatus(1L, 10, "CLIENT", OrderStatus.CANCELLED, "Rejected before acceptance");
+
+        verify(sagaPublisher, never()).publishOrderCancelled(any());
+        verify(sagaPublisher, never()).publishOrderCompleted(any());
+    }
+
+    @Test
+    void updateStatus_completedFromDelivered_publishesOrderCompleted() {
+        Order order = savedOrder(10, 1, 5);
+        order.setStatus(OrderStatus.DELIVERED);
+        when(orderRepository.findWithDetailsById(1L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        ArgumentCaptor<OrderTerminalEvent> eventCaptor = ArgumentCaptor.forClass(OrderTerminalEvent.class);
+
+        Order result = orderService.updateStatus(1L, 5, "FREELANCER", OrderStatus.COMPLETED, "Done");
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.COMPLETED);
+        assertThat(result.getCompletedAt()).isNotNull();
+        verify(sagaPublisher).publishOrderCompleted(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().orderId()).isEqualTo(1L);
+        assertThat(eventCaptor.getValue().gigId()).isEqualTo(1);
+        verify(sagaPublisher, never()).publishOrderCancelled(any());
+    }
 }
