@@ -11,6 +11,7 @@ import com.skillbridge.order.model.OrderStatus;
 import com.skillbridge.order.repository.OrderRepository;
 import com.skillbridge.order.saga.OrderPlacedEvent;
 import com.skillbridge.order.saga.OrderSagaPublisher;
+import com.skillbridge.order.saga.OrderTerminalEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -60,6 +61,17 @@ class OrderServiceTest {
         o.setTotalCost(new BigDecimal("150.00"));
         o.setMaxRevisions(3);
         o.setStatus(status);
+        return o;
+    }
+
+    private Order savedOrder(int clientId, int orderId, int sellerId) {
+        Order o = new Order();
+        o.setId((long) orderId);
+        o.setClientId(clientId);
+        o.setSellerId(sellerId);
+        o.setGigId(1);
+        o.setTotalCost(new BigDecimal("150.00"));
+        o.setMaxRevisions(3);
         return o;
     }
 
