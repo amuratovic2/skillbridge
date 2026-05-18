@@ -3,9 +3,9 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "build": "nx build web",
+    "build": "vite build --config apps/web/vite.config.mts",
     "dev": "concurrently -n discovery,user,gig,order,comm,gateway,web -c red,blue,green,yellow,magenta,cyan,white \"npm run dev:discovery\" \"npm run dev:user\" \"npm run dev:gig\" \"npm run dev:order\" \"npm run dev:comm\" \"npm run dev:gateway\" \"npm run dev:web\"",
-    "dev:web": "nx dev web",
+    "dev:web": "vite --config apps/web/vite.config.mts",
     "dev:discovery": "cd services/discovery-service && mvn spring-boot:run",
     "dev:gateway": "cd services/api-gateway && mvn spring-boot:run",
     "dev:user": "cd services/user-service && mvn spring-boot:run",
