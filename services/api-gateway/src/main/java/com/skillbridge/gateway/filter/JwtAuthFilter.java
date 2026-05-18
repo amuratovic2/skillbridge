@@ -78,6 +78,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         this.signingKey = loadPrivateKey(signingPrivateKey);
         PathPatternParser parser = new PathPatternParser();
         this.publicRules = List.of(
+            new RouteRule(HttpMethod.GET, parser.parse("/"), ALL_ROLES),
             new RouteRule(HttpMethod.POST, parser.parse("/api/auth/register"), ALL_ROLES),
             new RouteRule(HttpMethod.POST, parser.parse("/api/auth/login"), ALL_ROLES),
             new RouteRule(HttpMethod.POST, parser.parse("/api/auth/refresh"), ALL_ROLES),

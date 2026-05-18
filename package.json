@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
+    "build": "nx build web",
     "dev": "concurrently -n discovery,user,gig,order,comm,gateway,web -c red,blue,green,yellow,magenta,cyan,white \"npm run dev:discovery\" \"npm run dev:user\" \"npm run dev:gig\" \"npm run dev:order\" \"npm run dev:comm\" \"npm run dev:gateway\" \"npm run dev:web\"",
     "dev:web": "nx dev web",
     "dev:discovery": "cd services/discovery-service && mvn spring-boot:run",
@@ -22,6 +23,7 @@
     "@nx/vite": "22.6.5",
     "@nx/web": "22.6.5",
     "@nx/workspace": "22.6.5",
+    "@rolldown/binding-win32-x64-msvc": "1.0.0-rc.15",
     "@swc-node/register": "~1.11.1",
     "@swc/core": "~1.15.5",
     "@swc/helpers": "~0.5.18",
@@ -31,6 +33,7 @@
     "@vitejs/plugin-react": "^6.0.0",
     "@vitest/ui": "~4.1.0",
     "autoprefixer": "10.4.13",
+    "concurrently": "^9.1.0",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-import": "2.31.0",
@@ -47,8 +50,7 @@
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.40.0",
     "vite": "^8.0.0",
-    "vitest": "~4.1.0",
-    "concurrently": "^9.1.0"
+    "vitest": "~4.1.0"
   },
   "dependencies": {
     "axios": "^1.6.0",

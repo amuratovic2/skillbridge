@@ -7,6 +7,8 @@ import LandingPage from '../pages/LandingPage';
 import GigListingPage from '../pages/GigListingPage';
 import GigDetailPage from '../pages/GigDetailPage';
 import FreelancerProfilePage from '../pages/FreelancerProfilePage';
+import UserDirectoryPage from '../pages/UserDirectoryPage';
+import ProfileSettingsPage from '../pages/ProfileSettingsPage';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import DashboardPage from '../pages/DashboardPage';
@@ -30,6 +32,7 @@ export function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/gigs" element={<GigListingPage />} />
           <Route path="/gigs/:id" element={<GigDetailPage />} />
+          <Route path="/freelancers" element={<UserDirectoryPage />} />
           <Route path="/freelancer/:id" element={<FreelancerProfilePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -38,6 +41,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/profile"
+            element={
+              <ProtectedRoute>
+                <ProfileSettingsPage />
               </ProtectedRoute>
             }
           />

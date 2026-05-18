@@ -1,12 +1,18 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import api from '../lib/api';
+import type { ReactNode } from 'react';
+import type { UserProfile } from '../lib/user-service';
 
-interface User {
+export interface User {
   id: number;
   username: string;
   email: string;
   role: string;
+  firstName?: string;
+  lastName?: string;
+  bio?: string;
   profilePicture?: string;
+  country?: string;
 }
 
 interface AuthContextType {
@@ -22,6 +28,7 @@ interface AuthContextType {
     lastName?: string;
   }) => Promise<void>;
   logout: () => void;
+  setAuthenticatedUser: (user: UserProfile) => void;
   isAuthenticated: boolean;
 }
 
@@ -40,14 +47,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
+  const setAuthenticatedUser = (userData: UserProfile) => {
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
+  };
+
   const login = async (email: string, password: string) => {
     const response = await api.post('/auth/login', { email, password });
     const { accessToken, refreshToken, user: userData } = response.data.data;
 
     localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
+    setAuthenticatedUser(userData);
   };
 
   const register = async (data: {
@@ -63,8 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
+    setAuthenticatedUser(userData);
   };
 
   const logout = () => {
@@ -80,7 +90,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, login, register, logout, isAuthenticated: !!user }}
+      value={{
+        user,
+        isLoading,
+        login,
+        register,
+        logout,
+        setAuthenticatedUser,
+        isAuthenticated: !!user,
+      }}
     >
       {children}
     </AuthContext.Provider>

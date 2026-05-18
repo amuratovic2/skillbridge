@@ -28,10 +28,10 @@ export default function Navbar() {
             </Link>
             <div className="hidden md:flex items-center gap-6">
               <Link to="/gigs" className="text-sm text-gray-600 hover:text-gray-900">
-                Pretraži usluge
+                Pretrazi usluge
               </Link>
-              <Link to="/gigs" className="text-sm text-gray-600 hover:text-gray-900">
-                Kako funkcioniše
+              <Link to="/freelancers" className="text-sm text-gray-600 hover:text-gray-900">
+                Freelanceri
               </Link>
             </div>
           </div>
@@ -83,7 +83,7 @@ export default function Navbar() {
                   {menuOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1">
                       <Link
-                        to="/dashboard"
+                        to="/dashboard/profile"
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                         onClick={() => setMenuOpen(false)}
                       >
@@ -94,7 +94,7 @@ export default function Navbar() {
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                         onClick={() => setMenuOpen(false)}
                       >
-                        Moje narudžbe
+                        Moje narudzbe
                       </Link>
                       <Link
                         to="/dashboard/messages"
@@ -108,7 +108,7 @@ export default function Navbar() {
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                         onClick={() => setMenuOpen(false)}
                       >
-                        Prilagođene ponude
+                        Prilagodjene ponude
                       </Link>
                       <hr className="my-1" />
                       <button

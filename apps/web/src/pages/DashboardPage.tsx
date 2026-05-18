@@ -40,6 +40,12 @@ export default function DashboardPage() {
 
   const baseCards: CardDef[] = [
     {
+      to: '/dashboard/profile',
+      title: 'Moj profil',
+      subtitle: 'Azurirajte podatke, vjestine i portfolio',
+      iconPath: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
+    },
+    {
       to: '/dashboard/orders',
       title: 'Moje narudžbe',
       subtitle: 'Pregledajte status narudžbi',
@@ -78,7 +84,7 @@ export default function DashboardPage() {
     },
     {
       to: `/freelancer/${user?.id ?? ''}`,
-      title: 'Moj profil',
+      title: 'Javni profil',
       subtitle: 'Pogledajte javni profil',
       iconPath: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
     },
