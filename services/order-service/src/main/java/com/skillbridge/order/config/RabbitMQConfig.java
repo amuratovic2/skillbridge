@@ -18,11 +18,10 @@ public class RabbitMQConfig {
     public static final String ORDER_PLACED_KEY   = "order.placed";
     public static final String ORDER_CONFIRMED_KEY = "order.confirmed";
     public static final String ORDER_REJECTED_KEY  = "order.rejected";
-    public static final String ORDER_CANCELLED_KEY = "order.cancelled";
-    public static final String ORDER_COMPLETED_KEY = "order.completed";
 
     // Lifecycle routing keys – published by order-service, consumed by
-    // communication-service (notifications) and any future subscribers.
+    // communication-service (notifications), gig-service (terminal events),
+    // and any future subscribers.
     public static final String ORDER_ACCEPTED_KEY  = "order.accepted";
     public static final String ORDER_IN_PROGRESS_KEY = "order.in-progress";
     public static final String ORDER_DELIVERED_KEY = "order.delivered";
