@@ -38,10 +38,10 @@ export default function GigListingPage() {
       .finally(() => setLoading(false));
   }, [q, categoryId, sortBy, page]);
 
-  const updateParam = (key: string, value: string) => {
+  const updateParam = (key: string, value: string, resetPage = true) => {
     const p = new URLSearchParams(searchParams);
     if (value) p.set(key, value); else p.delete(key);
-    p.set('page', '1');
+    if (resetPage) p.set('page', '1');
     setSearchParams(p);
   };
 
@@ -93,7 +93,7 @@ export default function GigListingPage() {
           {meta.totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 mt-10">
               {Array.from({ length: meta.totalPages }, (_, i) => i + 1).map((p) => (
-                <button key={p} onClick={() => updateParam('page', String(p))}
+                <button key={p} onClick={() => updateParam('page', String(p), false)}
                   className={`px-4 py-2 rounded-lg text-sm ${p === page ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
                   {p}
                 </button>

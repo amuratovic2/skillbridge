@@ -8,25 +8,25 @@ import {
 import { getApiErrorMessage } from '../lib/api';
 import { userServiceApi, UserProfile } from '../lib/user-service';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import NewCustomOfferModal from './NewCustomOfferModal';
 
 type Tab = 'received' | 'sent';
 
 export default function CustomOffersPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('received');
   const [offers, setOffers] = useState<CustomOffer[]>([]);
   const [participantNames, setParticipantNames] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const isFreelancer = user?.role === 'FREELANCER';
 
   const load = (which: Tab) => {
     setLoading(true);
-    setError(null);
     const fetcher = which === 'received' ? customOffersApi.received() : customOffersApi.sent();
     fetcher
       .then((data) => {
@@ -65,7 +65,7 @@ export default function CustomOffersPage() {
       }
       load(tab);
     } catch (err: unknown) {
-      setError(getApiErrorMessage(err, 'Greška'));
+      toast.error(getApiErrorMessage(err, 'Greška pri obradi ponude'));
     }
   };
 
@@ -74,7 +74,7 @@ export default function CustomOffersPage() {
       await customOffersApi.withdraw(offer.id);
       load(tab);
     } catch (err: unknown) {
-      setError(getApiErrorMessage(err, 'Greška'));
+      toast.error(getApiErrorMessage(err, 'Greška pri povlačenju ponude'));
     }
   };
 
@@ -109,12 +109,6 @@ export default function CustomOffersPage() {
           ))}
         </div>
       </div>
-
-      {error && (
-        <div className="mb-6 bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm">
-          {error}
-        </div>
-      )}
 
       {loading ? (
         <div className="flex items-center justify-center min-h-[30vh]">

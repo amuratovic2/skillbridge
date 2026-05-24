@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getApiErrorMessage } from '../lib/api';
+import { isValidEmail } from '../lib/validation';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -18,10 +19,18 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    const trimmedEmail = email.trim();
+
+    if (!isValidEmail(trimmedEmail)) {
+      setError('Unesite validan email, npr. korisnik@gmail.com');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(trimmedEmail, password);
       navigate(redirectPath, { replace: true });
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, 'Pogrešan email ili lozinka'));

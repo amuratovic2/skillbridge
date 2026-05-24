@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getApiErrorMessage } from '../lib/api';
+import { isValidEmail } from '../lib/validation';
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,30}$/;
 
@@ -28,6 +29,13 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
 
+    const trimmedEmail = formData.email.trim();
+
+    if (!isValidEmail(trimmedEmail)) {
+      setError('Unesite validan email, npr. korisnik@gmail.com');
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError('Lozinke se ne podudaraju');
       return;
@@ -49,7 +57,7 @@ export default function RegisterPage() {
     try {
       await register({
         username,
-        email: formData.email,
+        email: trimmedEmail,
         password: formData.password,
         role: formData.role,
         firstName: formData.firstName || undefined,

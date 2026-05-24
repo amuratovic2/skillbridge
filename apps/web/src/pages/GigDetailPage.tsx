@@ -3,9 +3,9 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import StarRating from '../components/ui/StarRating';
-import Modal from '../components/ui/Modal';
 import api, { getApiErrorMessage } from '../lib/api';
 import OrderCheckoutModal from './order/OrderCheckoutModal';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 interface GigTag {
   id?: number;
@@ -44,6 +44,8 @@ export default function GigDetailPage() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const isOwner = user && gig && user.id === gig.freelancerId;
   const isFreelancer = user?.role === 'FREELANCER';
@@ -78,13 +80,18 @@ export default function GigDetailPage() {
   };
 
   const handleDelete = async () => {
+    if (deleteBusy) return;
+
     setActionError(null);
+    setDeleteError(null);
+    setDeleteBusy(true);
     try {
       await api.delete(`/gigs/${id}`);
       navigate('/gigs');
     } catch (err: unknown) {
-      setActionError(getApiErrorMessage(err, 'Greška pri brisanju'));
-      setDeleteOpen(false);
+      setDeleteError(getApiErrorMessage(err, 'Greška pri brisanju'));
+    } finally {
+      setDeleteBusy(false);
     }
   };
 
@@ -190,7 +197,10 @@ export default function GigDetailPage() {
                   Uredi uslugu
                 </button>
                 <button
-                  onClick={() => setDeleteOpen(true)}
+                  onClick={() => {
+                    setDeleteError(null);
+                    setDeleteOpen(true);
+                  }}
                   className="w-full border border-red-300 text-red-600 py-3 rounded-lg font-medium hover:bg-red-50 transition-colors"
                 >
                   Obriši uslugu
@@ -262,32 +272,6 @@ export default function GigDetailPage() {
         </div>
       </div>
 
-      {deleteOpen && (
-        <Modal title="Obriši uslugu" onClose={() => setDeleteOpen(false)}>
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              Da li ste sigurni da želite obrisati ovu uslugu? Ova akcija se ne može poništiti.
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setDeleteOpen(false)}
-                className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Odustani
-              </button>
-              <button
-                type="button"
-                onClick={handleDelete}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-700"
-              >
-                Obriši uslugu
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
-
       {checkoutOpen && (
         <OrderCheckoutModal
           gig={{
@@ -298,6 +282,23 @@ export default function GigDetailPage() {
             revisionCount: gig.revisionCount,
           }}
           onClose={() => setCheckoutOpen(false)}
+        />
+      )}
+
+      {deleteOpen && (
+        <ConfirmModal
+          title="Obriši uslugu"
+          message="Da li ste sigurni da želite obrisati ovu uslugu? Usluga više neće biti dostupna u rezultatima pretrage."
+          confirmLabel="Obriši"
+          tone="danger"
+          busy={deleteBusy}
+          error={deleteError}
+          onCancel={() => {
+            if (deleteBusy) return;
+            setDeleteOpen(false);
+            setDeleteError(null);
+          }}
+          onConfirm={handleDelete}
         />
       )}
     </div>
