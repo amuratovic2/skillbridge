@@ -4,24 +4,62 @@ import { useAuth } from '../context/AuthContext';
 import StarRating from '../components/ui/StarRating';
 import SkillTag from '../components/ui/SkillTag';
 import GigCard from '../components/ui/GigCard';
-import api from '../lib/api';
+import api, { getApiErrorMessage } from '../lib/api';
+import { userDisplayName, userInitials, userServiceApi } from '../lib/user-service';
+import type { UserProfile } from '../lib/user-service';
+
+interface GigSummary {
+  id: number;
+  title: string;
+  cost: number;
+  deliveryTime: number;
+  coverImage?: string | null;
+}
+
+interface RatingSummary {
+  averageRating: number;
+  totalReviews: number;
+}
 
 export default function FreelancerProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
-  const [profile, setProfile] = useState<any>(null);
-  const [gigs, setGigs] = useState<any[]>([]);
-  const [ratingData, setRatingData] = useState({ averageRating: 0, totalReviews: 0 });
+  const { user, isAuthenticated } = useAuth();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [gigs, setGigs] = useState<GigSummary[]>([]);
+  const [ratingData, setRatingData] = useState<RatingSummary>({ averageRating: 0, totalReviews: 0 });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+
     Promise.all([
-      api.get(`/users/${id}`).then((res) => setProfile(res.data.data)),
-      api.get(`/gigs/freelancer/${id}`).then((res) => setGigs(res.data.data || [])),
-      api.get(`/reviews/rating/${id}`).then((res) => setRatingData(res.data.data)),
+      userServiceApi.byId(id),
+      userServiceApi.userSkills(id).catch(() => []),
+      userServiceApi.userPortfolio(id).catch(() => []),
+      api
+        .get(`/gigs/freelancer/${id}`)
+        .then((res) => setGigs((res.data.data || []) as GigSummary[]))
+        .catch(() => setGigs([])),
+      api.get(`/reviews/rating/${id}`).then((res) => setRatingData(res.data.data as RatingSummary)).catch(() => {
+        setRatingData({ averageRating: 0, totalReviews: 0 });
+      }),
     ])
-      .catch(() => {})
+      .then(([profileData, skills, portfolioItems]) => {
+        setProfile({
+          ...profileData,
+          skills: skills.length > 0 ? skills : profileData.skills,
+          portfolioItems: portfolioItems.length > 0 ? portfolioItems : profileData.portfolioItems,
+        });
+      })
+      .catch((err: unknown) => {
+        setProfile(null);
+        setGigs([]);
+        setError(getApiErrorMessage(err, 'Profil nije moguce ucitati.'));
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -33,16 +71,28 @@ export default function FreelancerProfilePage() {
     );
   }
 
-  if (!profile) return null;
+  if (!profile) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-16 text-center">
+        <h1 className="text-xl font-semibold text-gray-900">Profil nije dostupan</h1>
+        <p className="text-sm text-gray-500 mt-2">{error || 'Korisnik nije pronadjen ili profil nije aktivan.'}</p>
+        <Link
+          to="/freelancers"
+          className="inline-flex mt-6 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700"
+        >
+          Nazad na freelancere
+        </Link>
+      </div>
+    );
+  }
 
-  const initials = [profile.firstName, profile.lastName]
-    .filter(Boolean)
-    .map((n: string) => n.charAt(0))
-    .join('')
-    .toUpperCase() || profile.username?.charAt(0).toUpperCase();
-
-  const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || profile.username;
-  const memberSince = new Date(profile.createdAt).toLocaleDateString('bs', { month: 'short', year: 'numeric' });
+  const skills = profile.skills ?? [];
+  const portfolioItems = profile.portfolioItems ?? [];
+  const initials = userInitials(profile);
+  const displayName = userDisplayName(profile);
+  const memberSince = profile.createdAt
+    ? new Date(profile.createdAt).toLocaleDateString('bs', { month: 'short', year: 'numeric' })
+    : 'nedavno';
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -97,20 +147,21 @@ export default function FreelancerProfilePage() {
             <button
               onClick={() => {
                 if (!isAuthenticated) { navigate('/login'); return; }
+                if (user?.id === profile.id) { navigate('/dashboard/profile'); return; }
                 navigate(`/dashboard/messages?to=${id}`);
               }}
               className="w-full bg-primary-600 text-white py-2.5 rounded-lg font-medium hover:bg-primary-700 transition-colors"
             >
-              Kontaktirajte
+              {user?.id === profile.id ? 'Uredi profil' : 'Kontaktirajte'}
             </button>
           </div>
 
           {/* Skills */}
-          {profile.skills?.length > 0 && (
+          {skills.length > 0 && (
             <div className="bg-white border border-gray-200 rounded-xl p-6 mt-4">
               <h3 className="font-semibold text-gray-900 mb-3">Vještine</h3>
               <div className="flex flex-wrap gap-2">
-                {profile.skills.map((skill: any) => (
+                {skills.map((skill) => (
                   <SkillTag key={skill.id} name={skill.name} />
                 ))}
               </div>
@@ -129,22 +180,28 @@ export default function FreelancerProfilePage() {
           )}
 
           {/* Portfolio */}
-          {profile.portfolioItems?.length > 0 && (
+          {portfolioItems.length > 0 && (
             <div>
               <h2 className="text-lg font-semibold text-gray-900 mb-3">Portfolio</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {profile.portfolioItems.map((item: any) => (
-                  <div key={item.id} className="bg-primary-50 rounded-xl aspect-square flex items-center justify-center overflow-hidden">
+                {portfolioItems.map((item) => (
+                  <div key={item.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                     {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
+                      <img src={item.imageUrl} alt={item.title} className="w-full aspect-square object-cover bg-primary-50" />
                     ) : (
-                      <div className="text-center p-4">
+                      <div className="aspect-square bg-primary-50 text-center p-4 flex flex-col items-center justify-center">
                         <svg className="w-8 h-8 text-primary-200 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                         <p className="text-xs text-primary-400">{item.title}</p>
                       </div>
                     )}
+                    <div className="p-3">
+                      <h3 className="font-medium text-sm text-gray-900">{item.title}</h3>
+                      {item.description && (
+                        <p className="text-xs text-gray-500 mt-1 line-clamp-3">{item.description}</p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -156,14 +213,14 @@ export default function FreelancerProfilePage() {
             <div>
               <h2 className="text-lg font-semibold text-gray-900 mb-3">Aktivne usluge</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {gigs.map((gig: any) => (
+                {gigs.map((gig) => (
                   <GigCard
                     key={gig.id}
                     id={gig.id}
                     title={gig.title}
                     cost={Number(gig.cost)}
                     deliveryTime={gig.deliveryTime}
-                    coverImage={gig.coverImage}
+                    coverImage={gig.coverImage ?? undefined}
                     freelancerName={displayName}
                     rating={ratingData.averageRating}
                     reviewCount={ratingData.totalReviews}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { notificationsApi, Notification } from '../../lib/orders';
 
 const NAVIGATION_BY_TYPE: Record<string, (refId: number | null) => string | null> = {
@@ -12,6 +13,7 @@ const NAVIGATION_BY_TYPE: Record<string, (refId: number | null) => string | null
 };
 
 export default function NotificationsBell() {
+  const { isAuthenticated } = useAuth();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
@@ -19,15 +21,27 @@ export default function NotificationsBell() {
   const navigate = useNavigate();
 
   const refresh = () => {
+    if (!isAuthenticated) {
+      setItems([]);
+      setUnread(0);
+      return;
+    }
     notificationsApi.list({ limit: 15 }).then((r) => setItems(r.data)).catch(() => {});
     notificationsApi.unreadCount().then(setUnread).catch(() => {});
   };
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setItems([]);
+      setUnread(0);
+      setOpen(false);
+      return;
+    }
+
     refresh();
     const tick = setInterval(refresh, 15000);
     return () => clearInterval(tick);
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!open) return;
@@ -39,6 +53,7 @@ export default function NotificationsBell() {
   }, [open]);
 
   const markAllRead = async () => {
+    if (!isAuthenticated) return;
     await notificationsApi.markAllRead().catch(() => {});
     refresh();
   };

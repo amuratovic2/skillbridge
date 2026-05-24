@@ -1,24 +1,41 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { ordersApi } from '../lib/orders';
+import { getApiErrorMessage } from '../lib/api';
 
 export default function CartPage() {
   const { items, remove, clear, total } = useCart();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const checkout = async () => {
     if (items.length === 0) return;
+    if (user?.role === 'FREELANCER') {
+      setError('Freelanceri ne mogu kreirati narudžbe. Za kupovinu koristite klijentski nalog.');
+      return;
+    }
     setError(null);
     setBusy(true);
     try {
-      await ordersApi.batchCreate(items.map((i) => i.gigId));
+      const createdOrders = await ordersApi.batchCreate(items.map((i) => i.gigId));
+
+      if (createdOrders.length !== items.length) {
+        const createdGigIds = new Set(createdOrders.map((order) => order.gigId));
+        createdGigIds.forEach(remove);
+        setError(
+          `Kreirano je ${createdOrders.length} od ${items.length} narudžbi. Neuspjele stavke su ostale u korpi.`,
+        );
+        return;
+      }
+
       clear();
       navigate('/dashboard/orders');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Greška pri kreiranju narudžbi');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Greška pri kreiranju narudžbi. Korpa nije ispražnjena.'));
     } finally {
       setBusy(false);
     }

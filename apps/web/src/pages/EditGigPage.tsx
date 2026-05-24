@@ -1,11 +1,32 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../lib/api';
+import api, { getApiErrorMessage } from '../lib/api';
+
+interface CategoryOption {
+  id: number;
+  title: string;
+}
+
+interface GigTag {
+  id?: number;
+  name: string;
+}
+
+interface EditableGig {
+  title?: string;
+  description?: string;
+  categoryId?: number;
+  category?: { id: number };
+  cost?: number;
+  deliveryTime?: number;
+  revisionCount?: number;
+  tags?: GigTag[];
+}
 
 export default function EditGigPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -25,7 +46,7 @@ export default function EditGigPage() {
       api.get('/categories'),
     ])
       .then(([gigRes, catRes]) => {
-        const gig = gigRes.data.data;
+        const gig = gigRes.data.data as EditableGig;
         setFormData({
           title: gig.title || '',
           description: gig.description || '',
@@ -33,7 +54,7 @@ export default function EditGigPage() {
           cost: String(gig.cost || ''),
           deliveryTime: String(gig.deliveryTime || ''),
           revisionCount: String(gig.revisionCount || ''),
-          tags: (gig.tags || []).map((t: any) => t.name).join(', '),
+          tags: (gig.tags || []).map((t) => t.name).join(', '),
         });
         setCategories(catRes.data.data || []);
       })
@@ -51,19 +72,48 @@ export default function EditGigPage() {
     setSaving(true);
 
     try {
+      const categoryId = Number.parseInt(formData.categoryId, 10);
+      const cost = Number.parseFloat(formData.cost);
+      const deliveryTime = Number.parseInt(formData.deliveryTime, 10);
+      const revisionCount = Number.parseInt(formData.revisionCount, 10);
+
+      if (!Number.isInteger(categoryId) || categoryId <= 0) {
+        setError('Izaberite validnu kategoriju.');
+        setSaving(false);
+        return;
+      }
+
+      if (!Number.isFinite(cost) || cost <= 0) {
+        setError('Cijena mora biti broj veći od 0.');
+        setSaving(false);
+        return;
+      }
+
+      if (!Number.isInteger(deliveryTime) || deliveryTime <= 0) {
+        setError('Rok isporuke mora biti cijeli broj veći od 0.');
+        setSaving(false);
+        return;
+      }
+
+      if (!Number.isInteger(revisionCount) || revisionCount < 0) {
+        setError('Broj revizija mora biti 0 ili veći.');
+        setSaving(false);
+        return;
+      }
+
       const tags = formData.tags.split(',').map((t) => t.trim()).filter(Boolean);
       await api.patch(`/gigs/${id}`, {
         title: formData.title,
         description: formData.description,
-        categoryId: parseInt(formData.categoryId, 10),
-        cost: parseFloat(formData.cost),
-        deliveryTime: parseInt(formData.deliveryTime, 10),
-        revisionCount: parseInt(formData.revisionCount, 10),
+        categoryId,
+        cost,
+        deliveryTime,
+        revisionCount,
         tags,
       });
       navigate(`/gigs/${id}`);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Greška pri ažuriranju usluge');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Greška pri ažuriranju usluge'));
     } finally {
       setSaving(false);
     }
@@ -101,7 +151,7 @@ export default function EditGigPage() {
           <select name="categoryId" value={formData.categoryId} onChange={handleChange} required
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
             <option value="">Izaberite kategoriju</option>
-            {categories.map((cat: any) => (
+            {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>{cat.title}</option>
             ))}
           </select>

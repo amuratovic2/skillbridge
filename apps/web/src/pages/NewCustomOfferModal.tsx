@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
-import api from '../lib/api';
+import api, { getApiErrorMessage } from '../lib/api';
 import { customOffersApi } from '../lib/orders';
 import { userServiceApi, UserProfile } from '../lib/user-service';
 
@@ -63,6 +63,25 @@ export default function NewCustomOfferModal({ onClose, onCreated }: Props) {
       return;
     }
 
+    const parsedPrice = Number(price);
+    const parsedDeliveryDays = Number(deliveryDays);
+    const parsedRevisionCount = Number(revisionCount);
+
+    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+      setError('Cijena mora biti broj veći od 0.');
+      return;
+    }
+
+    if (!Number.isInteger(parsedDeliveryDays) || parsedDeliveryDays <= 0) {
+      setError('Rok mora biti cijeli broj veći od 0.');
+      return;
+    }
+
+    if (!Number.isInteger(parsedRevisionCount) || parsedRevisionCount < 0) {
+      setError('Broj revizija mora biti 0 ili veći.');
+      return;
+    }
+
     setError(null);
     setSubmitting(true);
     try {
@@ -71,13 +90,13 @@ export default function NewCustomOfferModal({ onClose, onCreated }: Props) {
         gigId: gigId ? Number(gigId) : null,
         title,
         description: description || undefined,
-        price: Number(price),
-        deliveryDays: Number(deliveryDays),
-        revisionCount: Number(revisionCount),
+        price: parsedPrice,
+        deliveryDays: parsedDeliveryDays,
+        revisionCount: parsedRevisionCount,
       });
       onCreated();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Slanje nije uspjelo');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Slanje nije uspjelo'));
     } finally {
       setSubmitting(false);
     }

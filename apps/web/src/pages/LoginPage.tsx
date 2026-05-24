@@ -1,14 +1,19 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getApiErrorMessage } from '../lib/api';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const from = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from;
+  const redirectPath = from?.pathname ? `${from.pathname}${from.search ?? ''}` : '/dashboard';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,9 +22,9 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Pogrešan email ili lozinka');
+      navigate(redirectPath, { replace: true });
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Pogrešan email ili lozinka'));
     } finally {
       setLoading(false);
     }

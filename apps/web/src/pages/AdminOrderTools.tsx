@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { getApiErrorMessage } from '../lib/api';
 import { Order, ORDER_STATUS_META, OrderStatus, ordersApi } from '../lib/orders';
 
 const FORCEABLE: OrderStatus[] = [
@@ -18,6 +20,7 @@ interface Props {
 }
 
 export default function AdminOrderTools({ order, onChange }: Props) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [totalCost, setTotalCost] = useState(String(order.totalCost));
   const [maxRevisions, setMaxRevisions] = useState(String(order.maxRevisions));
@@ -28,6 +31,7 @@ export default function AdminOrderTools({ order, onChange }: Props) {
 
   const submitPatch = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (user?.role !== 'ADMIN') return;
     setError(null);
     setBusy(true);
 
@@ -49,8 +53,8 @@ export default function AdminOrderTools({ order, onChange }: Props) {
     try {
       await ordersApi.patch(order.id, ops);
       onChange();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Greška');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Greška'));
     } finally {
       setBusy(false);
     }
@@ -58,18 +62,23 @@ export default function AdminOrderTools({ order, onChange }: Props) {
 
   const submitForce = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (user?.role !== 'ADMIN') return;
     setError(null);
     setBusy(true);
     try {
       await ordersApi.updateStatus(order.id, forceStatus, note || undefined);
       setNote('');
       onChange();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Greška');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Greška'));
     } finally {
       setBusy(false);
     }
   };
+
+  if (user?.role !== 'ADMIN') {
+    return null;
+  }
 
   return (
     <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">

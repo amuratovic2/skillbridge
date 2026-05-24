@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
 let refreshRequest: Promise<string> | null = null;
 
 const api = axios.create({
@@ -14,6 +14,17 @@ function clearSession() {
   localStorage.removeItem('user');
 }
 
+export function getApiErrorMessage(error: unknown, fallback: string) {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as { message?: unknown } | undefined;
+    if (typeof data?.message === 'string' && data.message.trim()) {
+      return data.message;
+    }
+  }
+
+  return fallback;
+}
+
 function refreshAccessToken() {
   if (!refreshRequest) {
     const refreshToken = localStorage.getItem('refreshToken');
@@ -25,7 +36,15 @@ function refreshAccessToken() {
     refreshRequest = axios
       .post(`${API_URL}/auth/refresh`, { refreshToken })
       .then((response) => {
-        const { accessToken, refreshToken: newRefreshToken } = response.data.data;
+        const { accessToken, refreshToken: newRefreshToken } = response.data?.data ?? {};
+
+        if (typeof accessToken !== 'string' || !accessToken.trim()) {
+          throw new Error('Invalid access token response');
+        }
+
+        if (typeof newRefreshToken !== 'string' || !newRefreshToken.trim()) {
+          throw new Error('Invalid refresh token response');
+        }
 
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('refreshToken', newRefreshToken);

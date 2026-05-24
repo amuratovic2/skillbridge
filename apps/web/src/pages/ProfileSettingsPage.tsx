@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import SkillTag from '../components/ui/SkillTag';
+import Modal from '../components/ui/Modal';
+import { getApiErrorMessage } from '../lib/api';
 import { userServiceApi } from '../lib/user-service';
 import type { PortfolioItem, Skill, UpdateProfilePayload, UserProfile } from '../lib/user-service';
 
@@ -12,6 +14,8 @@ interface PortfolioFormState {
   description: string;
   imageUrl: string;
 }
+
+type Feedback = { type: 'success' | 'error'; text: string } | null;
 
 const emptyPortfolioForm: PortfolioFormState = { title: '', description: '', imageUrl: '' };
 
@@ -23,17 +27,37 @@ const toForm = (profile: UserProfile): UpdateProfilePayload => ({
   country: profile.country || '',
 });
 
+function isValidOptionalUrl(value?: string) {
+  const trimmed = value?.trim();
+  if (!trimmed) return true;
+
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function isWithinLimit(value: string | undefined, limit: number) {
+  return (value || '').trim().length <= limit;
+}
+
 export default function ProfileSettingsPage() {
-  const { user, setAuthenticatedUser } = useAuth();
+  const navigate = useNavigate();
+  const { user, setAuthenticatedUser, logout } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [allSkills, setAllSkills] = useState<Skill[]>([]);
   const [profileForm, setProfileForm] = useState<UpdateProfilePayload>({});
   const [portfolioForm, setPortfolioForm] = useState<PortfolioFormState>(emptyPortfolioForm);
+  const [newSkillName, setNewSkillName] = useState('');
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPortfolio, setSavingPortfolio] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [creatingSkill, setCreatingSkill] = useState(false);
+  const [deactivateOpen, setDeactivateOpen] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
+  const [feedback, setFeedback] = useState<Feedback>(null);
 
   const selectedSkillIds = useMemo(
     () => new Set((profile?.skills || []).map((skill) => skill.id)),
@@ -44,7 +68,7 @@ export default function ProfileSettingsPage() {
 
   const loadProfile = () => {
     setLoading(true);
-    setError('');
+    setFeedback(null);
     Promise.all([userServiceApi.me(), userServiceApi.allSkills()])
       .then(([me, skills]) => {
         setProfile(me);
@@ -52,7 +76,9 @@ export default function ProfileSettingsPage() {
         setProfileForm(toForm(me));
         setAllSkills(skills);
       })
-      .catch((err) => setError(err.response?.data?.message || 'Profil nije moguce ucitati.'))
+      .catch((err: unknown) =>
+        setFeedback({ type: 'error', text: getApiErrorMessage(err, 'Profil nije moguce ucitati.') }),
+      )
       .finally(() => setLoading(false));
   };
 
@@ -67,17 +93,40 @@ export default function ProfileSettingsPage() {
   const handleProfileSave = async (event: FormEvent) => {
     event.preventDefault();
     setSavingProfile(true);
-    setMessage('');
-    setError('');
+    setFeedback(null);
+
+    if (!isValidOptionalUrl(profileForm.profilePicture)) {
+      setFeedback({ type: 'error', text: 'URL slike profila mora biti validan http ili https link.' });
+      setSavingProfile(false);
+      return;
+    }
+
+    if (
+      !isWithinLimit(profileForm.firstName, 255) ||
+      !isWithinLimit(profileForm.lastName, 255) ||
+      !isWithinLimit(profileForm.bio, 2000) ||
+      !isWithinLimit(profileForm.profilePicture, 500) ||
+      !isWithinLimit(profileForm.country, 100)
+    ) {
+      setFeedback({ type: 'error', text: 'Provjerite duzinu unesenih polja.' });
+      setSavingProfile(false);
+      return;
+    }
 
     try {
-      const updated = await userServiceApi.updateMe(profileForm);
+      const updated = await userServiceApi.updateMe({
+        firstName: profileForm.firstName?.trim(),
+        lastName: profileForm.lastName?.trim(),
+        bio: profileForm.bio?.trim(),
+        profilePicture: profileForm.profilePicture?.trim(),
+        country: profileForm.country?.trim(),
+      });
       setProfile(updated);
       setAuthenticatedUser(updated);
       setProfileForm(toForm(updated));
-      setMessage('Profil je sacuvan.');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Profil nije sacuvan.');
+      setFeedback({ type: 'success', text: 'Profil je sacuvan.' });
+    } catch (err: unknown) {
+      setFeedback({ type: 'error', text: getApiErrorMessage(err, 'Profil nije sacuvan.') });
     } finally {
       setSavingProfile(false);
     }
@@ -85,8 +134,7 @@ export default function ProfileSettingsPage() {
 
   const toggleSkill = async (skill: Skill) => {
     if (!profile) return;
-    setMessage('');
-    setError('');
+    setFeedback(null);
 
     const hasSkill = selectedSkillIds.has(skill.id);
     try {
@@ -100,9 +148,56 @@ export default function ProfileSettingsPage() {
         await userServiceApi.addMySkill(skill.id);
         setProfile({ ...profile, skills: [...(profile.skills || []), skill] });
       }
-      setMessage(hasSkill ? 'Vjestina je uklonjena.' : 'Vjestina je dodana.');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Vjestine nije moguce azurirati.');
+      setFeedback({ type: 'success', text: hasSkill ? 'Vjestina je uklonjena.' : 'Vjestina je dodana.' });
+    } catch (err: unknown) {
+      setFeedback({ type: 'error', text: getApiErrorMessage(err, 'Vjestine nije moguce azurirati.') });
+    }
+  };
+
+  const createSkill = async (event: FormEvent) => {
+    event.preventDefault();
+    const name = newSkillName.trim();
+    setFeedback(null);
+
+    if (!name || name.length > 100) {
+      setFeedback({ type: 'error', text: 'Naziv vjestine mora imati 1-100 karaktera.' });
+      return;
+    }
+
+    const existing = allSkills.find((skill) => skill.name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      if (selectedSkillIds.has(existing.id)) {
+        setFeedback({ type: 'success', text: 'Vjestina je vec dodana profilu.' });
+      } else if (profile) {
+        setCreatingSkill(true);
+        try {
+          await userServiceApi.addMySkill(existing.id);
+          setProfile({ ...profile, skills: [...(profile.skills || []), existing] });
+          setFeedback({ type: 'success', text: 'Vjestina je dodana profilu.' });
+        } catch (err: unknown) {
+          setFeedback({ type: 'error', text: getApiErrorMessage(err, 'Vjestinu nije moguce dodati.') });
+        } finally {
+          setCreatingSkill(false);
+        }
+      }
+      setNewSkillName('');
+      return;
+    }
+
+    setCreatingSkill(true);
+    try {
+      const created = await userServiceApi.createSkill(name);
+      setAllSkills((current) => [...current, created].sort((a, b) => a.name.localeCompare(b.name)));
+      if (profile) {
+        await userServiceApi.addMySkill(created.id);
+        setProfile({ ...profile, skills: [...(profile.skills || []), created] });
+      }
+      setNewSkillName('');
+      setFeedback({ type: 'success', text: 'Vjestina je kreirana i dodana profilu.' });
+    } catch (err: unknown) {
+      setFeedback({ type: 'error', text: getApiErrorMessage(err, 'Vjestinu nije moguce kreirati.') });
+    } finally {
+      setCreatingSkill(false);
     }
   };
 
@@ -122,14 +217,25 @@ export default function ProfileSettingsPage() {
     if (!profile || !portfolioForm.title.trim()) return;
 
     setSavingPortfolio(true);
-    setMessage('');
-    setError('');
+    setFeedback(null);
 
     const payload = {
       title: portfolioForm.title.trim(),
       description: portfolioForm.description.trim(),
       imageUrl: portfolioForm.imageUrl.trim(),
     };
+
+    if (!payload.title || payload.title.length > 255 || payload.description.length > 2000 || payload.imageUrl.length > 500) {
+      setFeedback({ type: 'error', text: 'Provjerite duzinu portfolio polja.' });
+      setSavingPortfolio(false);
+      return;
+    }
+
+    if (!isValidOptionalUrl(payload.imageUrl)) {
+      setFeedback({ type: 'error', text: 'URL slike portfolio stavke mora biti validan http ili https link.' });
+      setSavingPortfolio(false);
+      return;
+    }
 
     try {
       if (portfolioForm.id) {
@@ -140,24 +246,38 @@ export default function ProfileSettingsPage() {
             item.id === updated.id ? updated : item,
           ),
         });
-        setMessage('Portfolio stavka je azurirana.');
+        setFeedback({ type: 'success', text: 'Portfolio stavka je azurirana.' });
       } else {
         const created = await userServiceApi.createPortfolioItem(payload);
         setProfile({ ...profile, portfolioItems: [created, ...(profile.portfolioItems || [])] });
-        setMessage('Portfolio stavka je dodana.');
+        setFeedback({ type: 'success', text: 'Portfolio stavka je dodana.' });
       }
       resetPortfolioForm();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Portfolio nije sacuvan.');
+    } catch (err: unknown) {
+      setFeedback({ type: 'error', text: getApiErrorMessage(err, 'Portfolio nije sacuvan.') });
     } finally {
       setSavingPortfolio(false);
     }
   };
 
+  const deactivateAccount = async () => {
+    setDeactivating(true);
+    setFeedback(null);
+    try {
+      await userServiceApi.deactivateMe();
+      logout();
+      navigate('/', { replace: true });
+    } catch (err: unknown) {
+      setFeedback({ type: 'error', text: getApiErrorMessage(err, 'Nalog nije moguce deaktivirati.') });
+      setDeactivateOpen(false);
+    } finally {
+      setDeactivating(false);
+    }
+  };
+
   const deletePortfolioItem = async (itemId: number) => {
     if (!profile) return;
-    setMessage('');
-    setError('');
+    setFeedback(null);
 
     try {
       await userServiceApi.deletePortfolioItem(itemId);
@@ -165,10 +285,10 @@ export default function ProfileSettingsPage() {
         ...profile,
         portfolioItems: (profile.portfolioItems || []).filter((item) => item.id !== itemId),
       });
-      setMessage('Portfolio stavka je obrisana.');
+      setFeedback({ type: 'success', text: 'Portfolio stavka je obrisana.' });
       if (portfolioForm.id === itemId) resetPortfolioForm();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Portfolio stavku nije moguce obrisati.');
+    } catch (err: unknown) {
+      setFeedback({ type: 'error', text: getApiErrorMessage(err, 'Portfolio stavku nije moguce obrisati.') });
     }
   };
 
@@ -196,13 +316,13 @@ export default function ProfileSettingsPage() {
         )}
       </div>
 
-      {(message || error) && (
+      {feedback && (
         <div
           className={`mb-6 px-4 py-3 rounded-lg text-sm ${
-            error ? 'bg-red-50 text-red-700' : 'bg-primary-50 text-primary-700'
+            feedback.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-primary-50 text-primary-700'
           }`}
         >
-          {error || message}
+          {feedback.text}
         </div>
       )}
 
@@ -215,6 +335,7 @@ export default function ProfileSettingsPage() {
               <input
                 value={profileForm.firstName || ''}
                 onChange={(e) => updateProfileField('firstName', e.target.value)}
+                maxLength={255}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
               />
             </label>
@@ -223,6 +344,7 @@ export default function ProfileSettingsPage() {
               <input
                 value={profileForm.lastName || ''}
                 onChange={(e) => updateProfileField('lastName', e.target.value)}
+                maxLength={255}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
               />
             </label>
@@ -231,6 +353,7 @@ export default function ProfileSettingsPage() {
               <input
                 value={profileForm.country || ''}
                 onChange={(e) => updateProfileField('country', e.target.value)}
+                maxLength={100}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
               />
             </label>
@@ -239,6 +362,8 @@ export default function ProfileSettingsPage() {
               <input
                 value={profileForm.profilePicture || ''}
                 onChange={(e) => updateProfileField('profilePicture', e.target.value)}
+                type="url"
+                maxLength={500}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
               />
             </label>
@@ -249,6 +374,7 @@ export default function ProfileSettingsPage() {
               value={profileForm.bio || ''}
               onChange={(e) => updateProfileField('bio', e.target.value)}
               rows={6}
+              maxLength={2000}
               className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none resize-none"
             />
           </label>
@@ -276,7 +402,18 @@ export default function ProfileSettingsPage() {
               <div className="text-gray-500">Uloga</div>
               <div className="font-medium text-gray-900">{profile?.role}</div>
             </div>
+            <div>
+              <div className="text-gray-500">Status</div>
+              <div className="font-medium text-gray-900">{profile?.isActive === false ? 'Neaktivan' : 'Aktivan'}</div>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setDeactivateOpen(true)}
+            className="mt-6 w-full border border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50"
+          >
+            Deaktiviraj nalog
+          </button>
         </aside>
       </div>
 
@@ -284,6 +421,22 @@ export default function ProfileSettingsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
           <section className="bg-white border border-gray-200 rounded-lg p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Vjestine</h2>
+            <form onSubmit={createSkill} className="flex gap-2 mb-4">
+              <input
+                value={newSkillName}
+                onChange={(event) => setNewSkillName(event.target.value)}
+                maxLength={100}
+                placeholder="Nova vjestina"
+                className="min-w-0 flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+              />
+              <button
+                type="submit"
+                disabled={creatingSkill}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
+              >
+                Dodaj
+              </button>
+            </form>
             <div className="flex flex-wrap gap-2">
               {allSkills.map((skill) => {
                 const active = selectedSkillIds.has(skill.id);
@@ -323,12 +476,15 @@ export default function ProfileSettingsPage() {
                 onChange={(e) => setPortfolioForm({ ...portfolioForm, title: e.target.value })}
                 placeholder="Naziv rada"
                 required
+                maxLength={255}
                 className="border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
               />
               <input
                 value={portfolioForm.imageUrl}
                 onChange={(e) => setPortfolioForm({ ...portfolioForm, imageUrl: e.target.value })}
                 placeholder="Slika URL"
+                type="url"
+                maxLength={500}
                 className="border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
               />
               <textarea
@@ -336,6 +492,7 @@ export default function ProfileSettingsPage() {
                 onChange={(e) => setPortfolioForm({ ...portfolioForm, description: e.target.value })}
                 placeholder="Opis"
                 rows={3}
+                maxLength={2000}
                 className="md:col-span-2 border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none resize-none"
               />
               <div className="md:col-span-2 flex flex-wrap gap-3">
@@ -390,6 +547,33 @@ export default function ProfileSettingsPage() {
             </div>
           </section>
         </div>
+      )}
+
+      {deactivateOpen && (
+        <Modal title="Deaktiviraj nalog" onClose={() => setDeactivateOpen(false)}>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Profil ce biti oznacen kao neaktivan i necete moci nastaviti rad pod ovim nalogom.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeactivateOpen(false)}
+                className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Odustani
+              </button>
+              <button
+                type="button"
+                onClick={deactivateAccount}
+                disabled={deactivating}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-700 disabled:opacity-60"
+              >
+                {deactivating ? 'Deaktivacija...' : 'Deaktiviraj'}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

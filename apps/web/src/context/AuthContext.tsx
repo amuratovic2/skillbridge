@@ -1,13 +1,13 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import api from '../lib/api';
 import type { ReactNode } from 'react';
-import type { UserProfile } from '../lib/user-service';
+import type { UserProfile, UserRole } from '../lib/user-service';
 
 export interface User {
   id: number;
   username: string;
   email: string;
-  role: string;
+  role: UserRole;
   firstName?: string;
   lastName?: string;
   bio?: string;
@@ -34,6 +34,51 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const VALID_ROLES = new Set<UserRole>(['CLIENT', 'FREELANCER', 'ADMIN']);
+
+function isStoredUser(value: unknown): value is User {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<User>;
+  return (
+    typeof candidate.id === 'number' &&
+    typeof candidate.username === 'string' &&
+    candidate.username.trim().length > 0 &&
+    typeof candidate.email === 'string' &&
+    candidate.email.trim().length > 0 &&
+    typeof candidate.role === 'string' &&
+    VALID_ROLES.has(candidate.role as UserRole)
+  );
+}
+
+function clearStoredSession() {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user');
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function readAuthPayload(responseData: unknown) {
+  const payload = (responseData as { data?: unknown })?.data as
+    | { accessToken?: unknown; refreshToken?: unknown; user?: unknown }
+    | undefined;
+
+  if (!isNonEmptyString(payload?.accessToken) || !isNonEmptyString(payload?.refreshToken) || !isStoredUser(payload?.user)) {
+    throw new Error('Invalid auth response');
+  }
+
+  return {
+    accessToken: payload.accessToken,
+    refreshToken: payload.refreshToken,
+    user: payload.user,
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,7 +87,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedUser = localStorage.getItem('user');
     const token = localStorage.getItem('accessToken');
     if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
+      try {
+        const parsed = JSON.parse(storedUser);
+        if (isStoredUser(parsed)) {
+          setUser(parsed);
+        } else {
+          clearStoredSession();
+        }
+      } catch {
+        clearStoredSession();
+      }
     }
     setIsLoading(false);
   }, []);
@@ -54,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const response = await api.post('/auth/login', { email, password });
-    const { accessToken, refreshToken, user: userData } = response.data.data;
+    const { accessToken, refreshToken, user: userData } = readAuthPayload(response.data);
 
     localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
@@ -70,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     lastName?: string;
   }) => {
     const response = await api.post('/auth/register', data);
-    const { accessToken, refreshToken, user: userData } = response.data.data;
+    const { accessToken, refreshToken, user: userData } = readAuthPayload(response.data);
 
     localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
@@ -82,9 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (refreshToken) {
       api.post('/auth/logout', { refreshToken }).catch(() => {});
     }
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+    clearStoredSession();
     setUser(null);
   };
 

@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../lib/api';
+import api, { getApiErrorMessage } from '../lib/api';
+
+interface CategoryOption {
+  id: number;
+  title: string;
+}
 
 export default function CreateGigPage() {
   const navigate = useNavigate();
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -31,6 +36,35 @@ export default function CreateGigPage() {
     setLoading(true);
 
     try {
+      const categoryId = Number.parseInt(formData.categoryId, 10);
+      const cost = Number.parseFloat(formData.cost);
+      const deliveryTime = Number.parseInt(formData.deliveryTime, 10);
+      const revisionCount = Number.parseInt(formData.revisionCount, 10);
+
+      if (!Number.isInteger(categoryId) || categoryId <= 0) {
+        setError('Izaberite validnu kategoriju.');
+        setLoading(false);
+        return;
+      }
+
+      if (!Number.isFinite(cost) || cost <= 0) {
+        setError('Cijena mora biti broj veći od 0.');
+        setLoading(false);
+        return;
+      }
+
+      if (!Number.isInteger(deliveryTime) || deliveryTime <= 0) {
+        setError('Rok isporuke mora biti cijeli broj veći od 0.');
+        setLoading(false);
+        return;
+      }
+
+      if (!Number.isInteger(revisionCount) || revisionCount < 0) {
+        setError('Broj revizija mora biti 0 ili veći.');
+        setLoading(false);
+        return;
+      }
+
       const tags = formData.tags
         .split(',')
         .map((t) => t.trim())
@@ -39,16 +73,16 @@ export default function CreateGigPage() {
       await api.post('/gigs', {
         title: formData.title,
         description: formData.description,
-        categoryId: parseInt(formData.categoryId, 10),
-        cost: parseFloat(formData.cost),
-        deliveryTime: parseInt(formData.deliveryTime, 10),
-        revisionCount: parseInt(formData.revisionCount, 10),
+        categoryId,
+        cost,
+        deliveryTime,
+        revisionCount,
         tags,
       });
 
       navigate('/gigs');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Greška pri kreiranju usluge');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Greška pri kreiranju usluge'));
     } finally {
       setLoading(false);
     }
@@ -98,7 +132,7 @@ export default function CreateGigPage() {
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
           >
             <option value="">Izaberite kategoriju</option>
-            {categories.map((cat: any) => (
+            {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>{cat.title}</option>
             ))}
           </select>

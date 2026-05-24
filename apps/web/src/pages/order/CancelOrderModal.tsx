@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Modal from '../../components/ui/Modal';
+import { getApiErrorMessage } from '../../lib/api';
 import { ordersApi } from '../../lib/orders';
 
 interface Props {
@@ -16,12 +17,19 @@ export default function CancelOrderModal({ orderId, onClose, onDone }: Props) {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    const trimmedReason = reason.trim();
+
+    if (trimmedReason.length < 5) {
+      setError('Unesite razlog otkazivanja od najmanje 5 karaktera.');
+      return;
+    }
+
     setBusy(true);
     try {
-      await ordersApi.updateStatus(orderId, 'CANCELLED', reason || undefined);
+      await ordersApi.updateStatus(orderId, 'CANCELLED', trimmedReason);
       onDone();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Greška pri otkazivanju');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Greška pri otkazivanju'));
     } finally {
       setBusy(false);
     }
@@ -36,6 +44,8 @@ export default function CancelOrderModal({ orderId, onClose, onDone }: Props) {
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={4}
+            required
+            minLength={5}
             placeholder="Kratko opišite zašto otkazujete narudžbu (vidjet će ga druga strana)..."
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
           />

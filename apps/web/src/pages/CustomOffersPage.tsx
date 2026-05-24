@@ -5,6 +5,8 @@ import {
   CUSTOM_OFFER_STATUS_META,
   customOffersApi,
 } from '../lib/orders';
+import { getApiErrorMessage } from '../lib/api';
+import { userServiceApi, UserProfile } from '../lib/user-service';
 import { useAuth } from '../context/AuthContext';
 import NewCustomOfferModal from './NewCustomOfferModal';
 
@@ -15,18 +17,41 @@ export default function CustomOffersPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('received');
   const [offers, setOffers] = useState<CustomOffer[]>([]);
+  const [participantNames, setParticipantNames] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isFreelancer = user?.role === 'FREELANCER';
 
   const load = (which: Tab) => {
     setLoading(true);
+    setError(null);
     const fetcher = which === 'received' ? customOffersApi.received() : customOffersApi.sent();
     fetcher
-      .then(setOffers)
-      .catch(() => setOffers([]))
+      .then((data) => {
+        setOffers(data);
+        loadParticipantNames(data);
+      })
+      .catch(() => {
+        setOffers([]);
+        setParticipantNames({});
+      })
       .finally(() => setLoading(false));
+  };
+
+  const loadParticipantNames = async (data: CustomOffer[]) => {
+    const ids = Array.from(new Set(data.flatMap((offer) => [offer.senderId, offer.receiverId])));
+    const entries = await Promise.all(
+      ids.map((id) =>
+        userServiceApi
+          .byId(id)
+          .then((profile) => [id, displayName(profile)] as const)
+          .catch(() => [id, `#${id}`] as const),
+      ),
+    );
+
+    setParticipantNames(Object.fromEntries(entries));
   };
 
   useEffect(() => load(tab), [tab]);
@@ -39,8 +64,8 @@ export default function CustomOffersPage() {
         return;
       }
       load(tab);
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Greška');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Greška'));
     }
   };
 
@@ -48,8 +73,8 @@ export default function CustomOffersPage() {
     try {
       await customOffersApi.withdraw(offer.id);
       load(tab);
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Greška');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Greška'));
     }
   };
 
@@ -84,6 +109,12 @@ export default function CustomOffersPage() {
           ))}
         </div>
       </div>
+
+      {error && (
+        <div className="mb-6 bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center min-h-[30vh]">
@@ -141,7 +172,7 @@ export default function CustomOffersPage() {
                   </div>
                   <div>
                     <p className="text-gray-500">{tab === 'received' ? 'Od' : 'Za'}</p>
-                    <p className="font-medium">#{otherParty}</p>
+                    <p className="font-medium">{participantNames[otherParty] ?? `#${otherParty}`}</p>
                   </div>
                 </div>
 
@@ -199,4 +230,8 @@ export default function CustomOffersPage() {
       )}
     </div>
   );
+}
+
+function displayName(profile: UserProfile) {
+  return [profile.firstName, profile.lastName].filter(Boolean).join(' ') || profile.username || profile.email;
 }

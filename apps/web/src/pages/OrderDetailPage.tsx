@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import api from '../lib/api';
+import api, { getApiErrorMessage } from '../lib/api';
 import {
   deliveriesApi,
   Delivery,
@@ -36,6 +36,7 @@ export default function OrderDetailPage() {
   const [revisionOpen, setRevisionOpen] = useState(false);
   const [deliverOpen, setDeliverOpen] = useState(false);
   const [versionOpen, setVersionOpen] = useState<number | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const fetchData = useCallback(() => {
     if (!id) return;
@@ -54,11 +55,12 @@ export default function OrderDetailPage() {
 
   const handleStatusChange = async (newStatus: Order['status']) => {
     if (!order) return;
+    setActionError(null);
     try {
       await ordersApi.updateStatus(order.id, newStatus);
       fetchData();
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Greška');
+    } catch (err: unknown) {
+      setActionError(getApiErrorMessage(err, 'Greška'));
     }
   };
 
@@ -249,6 +251,11 @@ export default function OrderDetailPage() {
             onRevision={() => setRevisionOpen(true)}
             onCancel={() => setCancelOpen(true)}
           />
+          {actionError && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3">
+              {actionError}
+            </p>
+          )}
 
           <div className="bg-white border border-gray-200 rounded-xl p-6 lg:sticky lg:top-24">
             <h2 className="font-semibold text-gray-900 mb-4">Historija</h2>

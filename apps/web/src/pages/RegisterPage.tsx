@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getApiErrorMessage } from '../lib/api';
+
+const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,30}$/;
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -30,6 +33,12 @@ export default function RegisterPage() {
       return;
     }
 
+    const username = formData.username.trim();
+    if (!USERNAME_PATTERN.test(username)) {
+      setError('Korisničko ime mora imati 3-30 karaktera i smije sadržavati samo slova, brojeve i donju crtu');
+      return;
+    }
+
     if (formData.password.length < 6) {
       setError('Lozinka mora imati najmanje 6 karaktera');
       return;
@@ -39,7 +48,7 @@ export default function RegisterPage() {
 
     try {
       await register({
-        username: formData.username,
+        username,
         email: formData.email,
         password: formData.password,
         role: formData.role,
@@ -47,8 +56,8 @@ export default function RegisterPage() {
         lastName: formData.lastName || undefined,
       });
       navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Greška pri registraciji');
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Greška pri registraciji'));
     } finally {
       setLoading(false);
     }
@@ -128,6 +137,9 @@ export default function RegisterPage() {
               value={formData.username}
               onChange={handleChange}
               required
+              minLength={3}
+              maxLength={30}
+              pattern="[a-zA-Z0-9_]+"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
             />
           </div>

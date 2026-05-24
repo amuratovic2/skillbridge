@@ -3,34 +3,64 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import StarRating from '../components/ui/StarRating';
-import api from '../lib/api';
+import Modal from '../components/ui/Modal';
+import api, { getApiErrorMessage } from '../lib/api';
 import OrderCheckoutModal from './order/OrderCheckoutModal';
+
+interface GigTag {
+  id?: number;
+  name: string;
+}
+
+interface GigDetail {
+  id: number;
+  title: string;
+  description?: string | null;
+  freelancerId: number;
+  cost: number;
+  deliveryTime: number;
+  revisionCount: number;
+  coverImage?: string | null;
+  tags?: GigTag[];
+}
+
+interface FreelancerSummary {
+  id: number;
+  username: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+}
 
 export default function GigDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const { add: addToCart, items: cartItems } = useCart();
-  const [gig, setGig] = useState<any>(null);
-  const [freelancer, setFreelancer] = useState<any>(null);
+  const [gig, setGig] = useState<GigDetail | null>(null);
+  const [freelancer, setFreelancer] = useState<FreelancerSummary | null>(null);
   const [ratingData, setRatingData] = useState({ averageRating: 0, totalReviews: 0 });
   const [loading, setLoading] = useState(true);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const isOwner = user && gig && user.id === gig.freelancerId;
+  const isFreelancer = user?.role === 'FREELANCER';
+  const canOrder = !isOwner && !isFreelancer;
 
   useEffect(() => {
     api
       .get(`/gigs/${id}`)
       .then(async (res) => {
-        const gigData = res.data.data;
+        const gigData = res.data.data as GigDetail;
         setGig(gigData);
         try {
           const [userRes, ratingRes] = await Promise.all([
             api.get(`/users/${gigData.freelancerId}`),
             api.get(`/reviews/rating/${gigData.freelancerId}`),
           ]);
-          setFreelancer(userRes.data.data);
+          setFreelancer(userRes.data.data as FreelancerSummary);
           setRatingData(ratingRes.data.data);
         } catch { /* ignore */ }
       })
@@ -40,16 +70,21 @@ export default function GigDetailPage() {
 
   const handleOrder = async () => {
     if (!isAuthenticated) { navigate('/login'); return; }
+    if (!canOrder) {
+      setActionError('Freelanceri ne mogu naručivati gigove. Za kupovinu koristite klijentski nalog.');
+      return;
+    }
     setCheckoutOpen(true);
   };
 
   const handleDelete = async () => {
-    if (!confirm('Da li ste sigurni da želite obrisati ovu uslugu?')) return;
+    setActionError(null);
     try {
       await api.delete(`/gigs/${id}`);
       navigate('/gigs');
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Greška pri brisanju');
+    } catch (err: unknown) {
+      setActionError(getApiErrorMessage(err, 'Greška pri brisanju'));
+      setDeleteOpen(false);
     }
   };
 
@@ -63,8 +98,12 @@ export default function GigDetailPage() {
 
   if (!gig) return null;
 
+  const tags = gig.tags ?? [];
+  const freelancerNameParts = [freelancer?.firstName, freelancer?.lastName].filter(
+    (part): part is string => Boolean(part),
+  );
   const freelancerName = freelancer
-    ? [freelancer.firstName, freelancer.lastName].filter(Boolean).join(' ') || freelancer.username
+    ? freelancerNameParts.join(' ') || freelancer.username
     : 'Freelancer';
   const freelancerInitial = freelancerName.charAt(0).toUpperCase();
 
@@ -109,9 +148,9 @@ export default function GigDetailPage() {
               <p className="text-gray-600 leading-relaxed whitespace-pre-line">{gig.description}</p>
             </div>
           )}
-          {gig.tags?.length > 0 && (
+          {tags.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              {gig.tags.map((tag: any) => (
+              {tags.map((tag) => (
                 <span key={tag.id || tag.name} className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm">
                   {tag.name}
                 </span>
@@ -151,7 +190,7 @@ export default function GigDetailPage() {
                   Uredi uslugu
                 </button>
                 <button
-                  onClick={handleDelete}
+                  onClick={() => setDeleteOpen(true)}
                   className="w-full border border-red-300 text-red-600 py-3 rounded-lg font-medium hover:bg-red-50 transition-colors"
                 >
                   Obriši uslugu
@@ -161,7 +200,8 @@ export default function GigDetailPage() {
               <>
                 <button
                   onClick={handleOrder}
-                  className="w-full bg-primary-600 text-white py-3 rounded-lg font-medium hover:bg-primary-700 transition-colors mb-3"
+                  disabled={!canOrder}
+                  className="w-full bg-primary-600 text-white py-3 rounded-lg font-medium hover:bg-primary-700 transition-colors mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Naruči sada
                 </button>
@@ -176,6 +216,10 @@ export default function GigDetailPage() {
                   <button
                     onClick={() => {
                       if (!isAuthenticated) { navigate('/login'); return; }
+                      if (!canOrder) {
+                        setActionError('Freelanceri ne mogu dodavati gigove u korpu.');
+                        return;
+                      }
                       addToCart({
                         gigId: gig.id,
                         title: gig.title,
@@ -208,9 +252,41 @@ export default function GigDetailPage() {
                 </p>
               </>
             )}
+            {isFreelancer && !isOwner && (
+              <p className="text-xs text-gray-500 text-center mt-3">
+                Narudžbe su dostupne samo klijentima.
+              </p>
+            )}
+            {actionError && <p className="text-sm text-red-600 mt-3">{actionError}</p>}
           </div>
         </div>
       </div>
+
+      {deleteOpen && (
+        <Modal title="Obriši uslugu" onClose={() => setDeleteOpen(false)}>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Da li ste sigurni da želite obrisati ovu uslugu? Ova akcija se ne može poništiti.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteOpen(false)}
+                className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Odustani
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-700"
+              >
+                Obriši uslugu
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {checkoutOpen && (
         <OrderCheckoutModal
