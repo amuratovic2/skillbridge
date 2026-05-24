@@ -12,6 +12,7 @@ public class OrderResponse {
     private Integer sellerId;
     private Integer gigId;
     private BigDecimal totalCost;
+    private String requirements;
     private String status;
     private LocalDateTime orderDate;
     private LocalDateTime deliveryDeadline;
@@ -30,6 +31,8 @@ public class OrderResponse {
     public void setGigId(Integer gigId) { this.gigId = gigId; }
     public BigDecimal getTotalCost() { return totalCost; }
     public void setTotalCost(BigDecimal totalCost) { this.totalCost = totalCost; }
+    public String getRequirements() { return requirements; }
+    public void setRequirements(String requirements) { this.requirements = requirements; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public LocalDateTime getOrderDate() { return orderDate; }

@@ -32,6 +32,9 @@ public class Order {
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal totalCost;
 
+    @Column(length = 2000)
+    private String requirements;
+
     private LocalDateTime deliveryDeadline;
 
     @Column(nullable = false)
@@ -65,6 +68,8 @@ public class Order {
     public void setStatus(OrderStatus status) { this.status = status; }
     public BigDecimal getTotalCost() { return totalCost; }
     public void setTotalCost(BigDecimal totalCost) { this.totalCost = totalCost; }
+    public String getRequirements() { return requirements; }
+    public void setRequirements(String requirements) { this.requirements = requirements; }
     public LocalDateTime getDeliveryDeadline() { return deliveryDeadline; }
     public void setDeliveryDeadline(LocalDateTime deliveryDeadline) { this.deliveryDeadline = deliveryDeadline; }
     public int getMaxRevisions() { return maxRevisions; }

@@ -12,6 +12,7 @@ public class OrderMapper {
         dto.setSellerId(order.getSellerId());
         dto.setGigId(order.getGigId());
         dto.setTotalCost(order.getTotalCost());
+        dto.setRequirements(order.getRequirements());
         dto.setStatus(order.getStatus().name());
         dto.setOrderDate(order.getOrderDate());
         dto.setDeliveryDeadline(order.getDeliveryDeadline());

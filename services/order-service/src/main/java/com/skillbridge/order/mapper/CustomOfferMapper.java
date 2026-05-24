@@ -9,6 +9,7 @@ public class CustomOfferMapper {
         CustomOfferResponse dto = new CustomOfferResponse();
         dto.setId(offer.getId());
         dto.setGigId(offer.getGigId());
+        dto.setOrderId(offer.getOrderId());
         dto.setSenderId(offer.getSenderId());
         dto.setReceiverId(offer.getReceiverId());
         dto.setTitle(offer.getTitle());

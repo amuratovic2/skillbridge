@@ -56,7 +56,7 @@ class OrderControllerTest {
         CreateOrderRequest req = new CreateOrderRequest();
         req.setGigId(2);
 
-        when(orderService.create(anyInt(), anyInt())).thenReturn(fakeOrder());
+        when(orderService.create(anyInt(), anyInt(), any())).thenReturn(fakeOrder());
 
         mockMvc.perform(post("/orders")
                 .header("x-user-id", 1)

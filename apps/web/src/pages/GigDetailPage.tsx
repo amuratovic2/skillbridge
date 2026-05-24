@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import StarRating from '../components/ui/StarRating';
 import api from '../lib/api';
+import OrderCheckoutModal from './order/OrderCheckoutModal';
 
 export default function GigDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -14,6 +15,7 @@ export default function GigDetailPage() {
   const [freelancer, setFreelancer] = useState<any>(null);
   const [ratingData, setRatingData] = useState({ averageRating: 0, totalReviews: 0 });
   const [loading, setLoading] = useState(true);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   const isOwner = user && gig && user.id === gig.freelancerId;
 
@@ -38,21 +40,7 @@ export default function GigDetailPage() {
 
   const handleOrder = async () => {
     if (!isAuthenticated) { navigate('/login'); return; }
-    if (!confirm(`Potvrdite narudžbu:\n\n${gig.title}\nCijena: ${Number(gig.cost)} €\nRok isporuke: ${gig.deliveryTime} dana\nRevizije: ${gig.revisionCount}\n\nDa li želite naručiti?`)) return;
-    try {
-      await api.post('/orders', {
-        gigId: gig.id,
-        totalCost: Number(gig.cost),
-        maxRevisions: gig.revisionCount,
-        deliveryDays: gig.deliveryTime,
-      });
-      alert('Narudžba uspješno kreirana!');
-      navigate('/dashboard/orders');
-    } catch (err: any) {
-      const msg = err.response?.data?.message || err.response?.data?.error || 'Greška pri kreiranju narudžbe';
-      alert(msg);
-      console.error('Order error:', err.response?.data);
-    }
+    setCheckoutOpen(true);
   };
 
   const handleDelete = async () => {
@@ -223,6 +211,19 @@ export default function GigDetailPage() {
           </div>
         </div>
       </div>
+
+      {checkoutOpen && (
+        <OrderCheckoutModal
+          gig={{
+            id: gig.id,
+            title: gig.title,
+            cost: Number(gig.cost),
+            deliveryTime: gig.deliveryTime,
+            revisionCount: gig.revisionCount,
+          }}
+          onClose={() => setCheckoutOpen(false)}
+        />
+      )}
     </div>
   );
 }

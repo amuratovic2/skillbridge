@@ -2,10 +2,17 @@ package com.skillbridge.order.service;
 
 import com.skillbridge.order.config.RabbitMQConfig;
 import com.skillbridge.order.events.CustomOfferEvent;
+import com.skillbridge.order.events.OrderEvent;
 import com.skillbridge.order.events.OrderEventPublisher;
 import com.skillbridge.order.model.CustomOffer;
 import com.skillbridge.order.model.CustomOfferStatus;
+import com.skillbridge.order.model.Order;
+import com.skillbridge.order.model.OrderHistory;
+import com.skillbridge.order.model.OrderStatus;
 import com.skillbridge.order.repository.CustomOfferRepository;
+import com.skillbridge.order.repository.OrderRepository;
+import com.skillbridge.order.saga.OrderPlacedEvent;
+import com.skillbridge.order.saga.OrderSagaPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,12 +25,18 @@ import java.util.List;
 public class CustomOfferService {
 
     private final CustomOfferRepository customOfferRepository;
+    private final OrderRepository orderRepository;
     private final OrderEventPublisher eventPublisher;
+    private final OrderSagaPublisher sagaPublisher;
 
     public CustomOfferService(CustomOfferRepository customOfferRepository,
-                              OrderEventPublisher eventPublisher) {
+                              OrderRepository orderRepository,
+                              OrderEventPublisher eventPublisher,
+                              OrderSagaPublisher sagaPublisher) {
         this.customOfferRepository = customOfferRepository;
+        this.orderRepository = orderRepository;
         this.eventPublisher = eventPublisher;
+        this.sagaPublisher = sagaPublisher;
     }
 
     @Transactional
@@ -68,6 +81,11 @@ public class CustomOfferService {
         }
 
         offer.setStatus(status);
+        if (status == CustomOfferStatus.ACCEPTED && offer.getGigId() != null) {
+            Order order = createOrderFromOffer(offer, userId);
+            offer.setOrderId(order.getId());
+        }
+
         CustomOffer saved = customOfferRepository.save(offer);
 
         String routingKey = switch (status) {
@@ -82,6 +100,45 @@ public class CustomOfferService {
             ));
         }
         return saved;
+    }
+
+    private Order createOrderFromOffer(CustomOffer offer, Integer clientId) {
+        Order order = new Order();
+        order.setClientId(clientId);
+        order.setSellerId(offer.getSenderId());
+        order.setGigId(offer.getGigId());
+        order.setTotalCost(offer.getPrice());
+        order.setMaxRevisions(offer.getRevisionCount());
+        order.setRequirements(normalizeText(offer.getDescription()));
+        order.setDeliveryDeadline(LocalDateTime.now().plusDays(offer.getDeliveryDays()));
+
+        OrderHistory history = new OrderHistory();
+        history.setOrder(order);
+        history.setChangedByUserId(clientId.longValue());
+        history.setActionType("CUSTOM_OFFER_ACCEPTED");
+        history.setOldStatus(null);
+        history.setNewStatus(OrderStatus.PENDING.name());
+        history.setNote("Narudžba kreirana iz prilagođene ponude #" + offer.getId());
+        order.getHistory().add(history);
+
+        Order saved = orderRepository.save(order);
+        sagaPublisher.publishOrderPlaced(new OrderPlacedEvent(
+            saved.getId(), saved.getGigId(), saved.getClientId(), saved.getSellerId(), saved.getTotalCost()
+        ));
+        eventPublisher.publishOrderEvent(OrderEvent.of(
+            RabbitMQConfig.ORDER_PLACED_KEY, saved.getId(), saved.getClientId(),
+            saved.getSellerId(), saved.getGigId(), null, OrderStatus.PENDING.name(),
+            saved.getTotalCost(), clientId, history.getNote()
+        ));
+        return saved;
+    }
+
+    private String normalizeText(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     @Transactional

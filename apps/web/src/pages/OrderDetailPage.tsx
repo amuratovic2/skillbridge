@@ -62,8 +62,8 @@ export default function OrderDetailPage() {
     }
   };
 
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const sendMessage = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!newMessage.trim() || !order || !user) return;
 
     const otherUserId = user.id === order.clientId ? order.sellerId : order.clientId;
@@ -99,23 +99,26 @@ export default function OrderDetailPage() {
   const isSeller = user?.id === order.sellerId;
   const isAdmin = user?.role === 'ADMIN';
   const revisionsLeft = Math.max(order.maxRevisions - order.usedRevisions, 0);
-  const inDispute = order.status === 'DISPUTED';
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white border border-gray-200 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-xl font-bold text-gray-900">Narudžba #{order.id}</h1>
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${meta.chip}`}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-5">
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">Narudžba #{order.id}</h1>
+                <p className="text-sm text-gray-500 mt-1">{headlineFor(order.status, isSeller)}</p>
+              </div>
+              <span className={`self-start px-3 py-1 rounded-full text-xs font-medium ${meta.chip}`}>
                 {meta.label}
               </span>
             </div>
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <span className="text-gray-500">Cijena</span>
-                <p className="font-medium">{Number(order.totalCost)} &euro;</p>
+                <p className="font-medium">{Number(order.totalCost).toFixed(2)} &euro;</p>
               </div>
               <div>
                 <span className="text-gray-500">Datum</span>
@@ -130,11 +133,13 @@ export default function OrderDetailPage() {
                 <p className="font-medium">
                   {order.deliveryDeadline
                     ? new Date(order.deliveryDeadline).toLocaleDateString('bs')
-                    : '—'}
+                    : '-'}
                 </p>
               </div>
             </div>
           </div>
+
+          <WorkflowTracker status={order.status} />
 
           <div className="bg-white border border-gray-200 rounded-xl p-6">
             <h2 className="font-semibold text-gray-900 mb-2">Zahtjevi klijenta</h2>
@@ -142,76 +147,6 @@ export default function OrderDetailPage() {
               <p className="text-sm text-gray-700 whitespace-pre-wrap">{order.requirements}</p>
             ) : (
               <p className="text-sm text-gray-400">Nema zahtjeva</p>
-            )}
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            {isSeller && order.status === 'PENDING' && (
-              <button
-                onClick={() => handleStatusChange('ACCEPTED')}
-                className="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-primary-700"
-              >
-                Prihvati narudžbu
-              </button>
-            )}
-            {isSeller && order.status === 'ACCEPTED' && (
-              <button
-                onClick={() => handleStatusChange('IN_PROGRESS')}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
-              >
-                Započni rad
-              </button>
-            )}
-            {isSeller && ['ACCEPTED', 'IN_PROGRESS', 'REVISION_REQUESTED'].includes(order.status) && (
-              <button
-                onClick={() => setDeliverOpen(true)}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700"
-              >
-                Isporuči rad
-              </button>
-            )}
-            {isClient && order.status === 'DELIVERED' && (
-              <>
-                <button
-                  onClick={() => handleStatusChange('COMPLETED')}
-                  className="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-primary-700"
-                >
-                  Prihvati isporuku
-                </button>
-                {revisionsLeft > 0 && (
-                  <button
-                    onClick={() => setRevisionOpen(true)}
-                    className="border border-orange-300 text-orange-600 px-4 py-2 rounded-lg text-sm hover:bg-orange-50"
-                  >
-                    Traži reviziju ({revisionsLeft} preostalo)
-                  </button>
-                )}
-              </>
-            )}
-            {(isClient || isSeller) &&
-              ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'REVISION_REQUESTED'].includes(order.status) && (
-                <button
-                  onClick={() => setCancelOpen(true)}
-                  className="border border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm hover:bg-red-50"
-                >
-                  Otkaži
-                </button>
-              )}
-            {isAdmin && inDispute && (
-              <>
-                <button
-                  onClick={() => handleStatusChange('COMPLETED')}
-                  className="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-primary-700"
-                >
-                  Riješi: Završi
-                </button>
-                <button
-                  onClick={() => handleStatusChange('CANCELLED')}
-                  className="border border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm hover:bg-red-50"
-                >
-                  Riješi: Otkaži
-                </button>
-              </>
             )}
           </div>
 
@@ -239,7 +174,7 @@ export default function OrderDetailPage() {
                     )}
                     {delivery.fileName && (
                       <span className="text-xs text-primary-600 mt-1 inline-block">
-                        📎 {delivery.fileName}
+                        Prilog: {delivery.fileName}
                       </span>
                     )}
                   </button>
@@ -286,7 +221,7 @@ export default function OrderDetailPage() {
               <input
                 type="text"
                 value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
+                onChange={(event) => setNewMessage(event.target.value)}
                 placeholder="Unesite poruku..."
                 className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
               />
@@ -300,8 +235,22 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
-        <div className="lg:col-span-1">
-          <div className="bg-white border border-gray-200 rounded-xl p-6 sticky top-24">
+        <div className="lg:col-span-1 space-y-6">
+          <OrderActionPanel
+            order={order}
+            isClient={isClient}
+            isSeller={isSeller}
+            isAdmin={isAdmin}
+            revisionsLeft={revisionsLeft}
+            onAccept={() => handleStatusChange('ACCEPTED')}
+            onStart={() => handleStatusChange('IN_PROGRESS')}
+            onDeliver={() => setDeliverOpen(true)}
+            onComplete={() => handleStatusChange('COMPLETED')}
+            onRevision={() => setRevisionOpen(true)}
+            onCancel={() => setCancelOpen(true)}
+          />
+
+          <div className="bg-white border border-gray-200 rounded-xl p-6 lg:sticky lg:top-24">
             <h2 className="font-semibold text-gray-900 mb-4">Historija</h2>
             <div className="space-y-4">
               {(order.history ?? []).length === 0 && (
@@ -370,4 +319,321 @@ export default function OrderDetailPage() {
       )}
     </div>
   );
+}
+
+const WORKFLOW_STEPS: { status: OrderStatus; label: string }[] = [
+  { status: 'PENDING', label: 'Kreirano' },
+  { status: 'ACCEPTED', label: 'Prihvaćeno' },
+  { status: 'IN_PROGRESS', label: 'U izradi' },
+  { status: 'DELIVERED', label: 'Isporučeno' },
+  { status: 'COMPLETED', label: 'Završeno' },
+];
+
+function WorkflowTracker({ status }: { status: OrderStatus }) {
+  const activeIndex = workflowIndex(status);
+  const isTerminalProblem = status === 'CANCELLED' || status === 'DISPUTED';
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-6">
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="font-semibold text-gray-900">Tok narudžbe</h2>
+        {isTerminalProblem && (
+          <span className="text-xs font-medium text-red-600">
+            {status === 'CANCELLED' ? 'Prekinuto' : 'U sporu'}
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+        {WORKFLOW_STEPS.map((step, index) => {
+          const reached = !isTerminalProblem && index <= activeIndex;
+          const current = !isTerminalProblem && index === activeIndex;
+          return (
+            <div key={step.status} className="relative flex items-start gap-3 sm:block">
+              {index < WORKFLOW_STEPS.length - 1 && (
+                <div
+                  className={`hidden sm:block absolute left-5 right-0 top-2 h-px ${
+                    reached && index < activeIndex ? 'bg-primary-300' : 'bg-gray-200'
+                  }`}
+                />
+              )}
+              <div className="relative z-10 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-white mt-0.5 sm:mt-0">
+                <span
+                  className={`block h-2.5 w-2.5 rounded-full ${
+                    reached ? 'bg-primary-600' : 'bg-gray-300'
+                  } ${current ? 'ring-4 ring-primary-100' : ''}`}
+                />
+              </div>
+              <div className="min-w-0 sm:mt-3">
+                <p className={`text-sm leading-5 font-medium ${current ? 'text-primary-700' : 'text-gray-900'}`}>
+                  {step.label}
+                </p>
+                <p className="text-xs leading-4 text-gray-400">{stepCaption(step.status)}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function OrderActionPanel({
+  order,
+  isClient,
+  isSeller,
+  isAdmin,
+  revisionsLeft,
+  onAccept,
+  onStart,
+  onDeliver,
+  onComplete,
+  onRevision,
+  onCancel,
+}: {
+  order: Order;
+  isClient: boolean;
+  isSeller: boolean;
+  isAdmin: boolean;
+  revisionsLeft: number;
+  onAccept: () => void;
+  onStart: () => void;
+  onDeliver: () => void;
+  onComplete: () => void;
+  onRevision: () => void;
+  onCancel: () => void;
+}) {
+  const action = actionCopy(order.status, isClient, isSeller, isAdmin, revisionsLeft);
+  const canCancel =
+    (isClient || isSeller) &&
+    ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'REVISION_REQUESTED'].includes(order.status);
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-6">
+      <p className="text-xs font-semibold uppercase tracking-wide text-primary-600 mb-2">
+        Sljedeći korak
+      </p>
+      <h2 className="font-semibold text-gray-900">{action.title}</h2>
+      <p className="text-sm text-gray-600 mt-2">{action.description}</p>
+
+      <div className="mt-5 space-y-2">
+        {isSeller && order.status === 'PENDING' && (
+          <button
+            type="button"
+            onClick={onAccept}
+            className="w-full bg-primary-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-primary-700"
+          >
+            Prihvati narudžbu
+          </button>
+        )}
+        {isSeller && order.status === 'ACCEPTED' && (
+          <button
+            type="button"
+            onClick={onStart}
+            className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
+          >
+            Započni rad
+          </button>
+        )}
+        {isSeller && ['ACCEPTED', 'IN_PROGRESS', 'REVISION_REQUESTED'].includes(order.status) && (
+          <button
+            type="button"
+            onClick={onDeliver}
+            className="w-full bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700"
+          >
+            Isporuči rad
+          </button>
+        )}
+        {isClient && order.status === 'DELIVERED' && (
+          <>
+            <button
+              type="button"
+              onClick={onComplete}
+              className="w-full bg-primary-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-primary-700"
+            >
+              Prihvati isporuku
+            </button>
+            {revisionsLeft > 0 && (
+              <button
+                type="button"
+                onClick={onRevision}
+                className="w-full border border-orange-300 text-orange-600 px-4 py-2 rounded-lg text-sm hover:bg-orange-50"
+              >
+                Traži reviziju ({revisionsLeft} preostalo)
+              </button>
+            )}
+          </>
+        )}
+        {isAdmin && order.status === 'DISPUTED' && (
+          <>
+            <button
+              type="button"
+              onClick={onComplete}
+              className="w-full bg-primary-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-primary-700"
+            >
+              Riješi: Završi
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-full border border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm hover:bg-red-50"
+            >
+              Riješi: Otkaži
+            </button>
+          </>
+        )}
+        {canCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="w-full border border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm hover:bg-red-50"
+          >
+            Otkaži narudžbu
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function workflowIndex(status: OrderStatus) {
+  if (status === 'REVISION_REQUESTED') return 2;
+  const index = WORKFLOW_STEPS.findIndex((step) => step.status === status);
+  return index >= 0 ? index : 0;
+}
+
+function stepCaption(status: OrderStatus) {
+  switch (status) {
+    case 'PENDING':
+      return 'Čeka potvrdu';
+    case 'ACCEPTED':
+      return 'Dogovoreno';
+    case 'IN_PROGRESS':
+      return 'Rad u toku';
+    case 'DELIVERED':
+      return 'Pregled';
+    case 'COMPLETED':
+      return 'Zatvoreno';
+    default:
+      return '';
+  }
+}
+
+function headlineFor(status: OrderStatus, isSeller: boolean) {
+  switch (status) {
+    case 'PENDING':
+      return isSeller ? 'Klijent čeka da prihvatite posao.' : 'Freelancer treba potvrditi narudžbu.';
+    case 'ACCEPTED':
+      return 'Narudžba je prihvaćena i spremna za rad.';
+    case 'IN_PROGRESS':
+      return 'Rad je u toku.';
+    case 'DELIVERED':
+      return 'Isporuka je spremna za pregled.';
+    case 'REVISION_REQUESTED':
+      return 'Klijent je zatražio dodatne izmjene.';
+    case 'COMPLETED':
+      return 'Narudžba je završena.';
+    case 'CANCELLED':
+      return 'Narudžba je otkazana.';
+    case 'DISPUTED':
+      return 'Narudžba je u sporu.';
+    default:
+      return '';
+  }
+}
+
+function actionCopy(
+  status: OrderStatus,
+  isClient: boolean,
+  isSeller: boolean,
+  isAdmin: boolean,
+  revisionsLeft: number,
+) {
+  if (isSeller && status === 'PENDING') {
+    return {
+      title: 'Prihvatite ili otkažite zahtjev',
+      description: 'Klijent je poslao narudžbu. Prihvatanjem potvrđujete da možete krenuti sa radom.',
+    };
+  }
+  if (isSeller && status === 'ACCEPTED') {
+    return {
+      title: 'Započnite rad ili pošaljite isporuku',
+      description: 'Ako ste spremni, označite rad kao započet. Isporuku možete poslati odmah kada imate materijale.',
+    };
+  }
+  if (isSeller && status === 'IN_PROGRESS') {
+    return {
+      title: 'Pošaljite isporuku kada je rad spreman',
+      description: 'Klijent će dobiti verziju isporuke i moći će je prihvatiti ili zatražiti reviziju.',
+    };
+  }
+  if (isSeller && status === 'REVISION_REQUESTED') {
+    return {
+      title: 'Klijent čeka novu verziju',
+      description: 'Pregledajte zahtjev za reviziju i pošaljite novu isporuku kada završite izmjene.',
+    };
+  }
+  if (isClient && status === 'DELIVERED') {
+    return {
+      title: 'Pregledajte isporuku',
+      description:
+        revisionsLeft > 0
+          ? 'Ako je sve uredu, prihvatite isporuku. Ako treba dorada, zatražite reviziju.'
+          : 'Ako je sve uredu, prihvatite isporuku. Dostigli ste limit revizija.',
+    };
+  }
+  if (isAdmin && status === 'DISPUTED') {
+    return {
+      title: 'Riješite spor',
+      description: 'Pregledajte historiju i poruke, zatim završite ili otkažite narudžbu.',
+    };
+  }
+
+  switch (status) {
+    case 'PENDING':
+      return {
+        title: 'Čeka se freelancer',
+        description: 'Narudžba je kreirana i čeka da freelancer potvrdi da može preuzeti posao.',
+      };
+    case 'ACCEPTED':
+      return {
+        title: 'Čeka se početak rada',
+        description: 'Freelancer je prihvatio narudžbu i sljedeći korak je početak rada.',
+      };
+    case 'IN_PROGRESS':
+      return {
+        title: 'Rad je u toku',
+        description: 'Freelancer trenutno radi na narudžbi. Ovdje možete pratiti poruke i isporuke.',
+      };
+    case 'DELIVERED':
+      return {
+        title: 'Isporuka je poslana',
+        description: 'Čeka se odluka klijenta: prihvatanje isporuke ili zahtjev za reviziju.',
+      };
+    case 'REVISION_REQUESTED':
+      return {
+        title: 'Revizija je u toku',
+        description: 'Freelancer treba poslati novu verziju na osnovu zahtjeva klijenta.',
+      };
+    case 'COMPLETED':
+      return {
+        title: 'Narudžba je završena',
+        description: 'Sve glavne akcije su zatvorene. Poruke i historija ostaju dostupne.',
+      };
+    case 'CANCELLED':
+      return {
+        title: 'Narudžba je otkazana',
+        description: 'Ova narudžba više nema aktivnih koraka.',
+      };
+    case 'DISPUTED':
+      return {
+        title: 'Narudžba je u sporu',
+        description: 'Čeka se administrativno rješenje spora.',
+      };
+    default:
+      return {
+        title: 'Pregled narudžbe',
+        description: 'Otvorite historiju i poruke za više detalja.',
+      };
+  }
 }

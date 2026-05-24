@@ -45,7 +45,7 @@ public class OrderController {
         @Valid @RequestBody CreateOrderRequest request
     ) {
         return ApiResponse.ok(OrderMapper.toDTO(
-            orderService.create(userId, request.getGigId())
+            orderService.create(userId, request.getGigId(), request.getRequirements())
         ));
     }
 

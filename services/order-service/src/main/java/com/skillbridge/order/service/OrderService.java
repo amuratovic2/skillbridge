@@ -63,6 +63,11 @@ public class OrderService {
      */
     @Transactional
     public Order create(Integer clientId, Integer gigId) {
+        return create(clientId, gigId, null);
+    }
+
+    @Transactional
+    public Order create(Integer clientId, Integer gigId, String requirements) {
         GigDto gig = gigClient.getGig(gigId);
         validateGigIsActive(gig);
 
@@ -76,6 +81,7 @@ public class OrderService {
         order.setGigId(gigId);
         order.setSellerId(gig.getFreelancerId());
         order.setTotalCost(gig.getCost());
+        order.setRequirements(normalizeRequirements(requirements));
         order.setMaxRevisions(gig.getRevisionCount());
         order.setDeliveryDeadline(LocalDateTime.now().plusDays(gig.getDeliveryTime()));
 
@@ -109,6 +115,7 @@ public class OrderService {
             order.setGigId(req.getGigId());
             order.setSellerId(gig.getFreelancerId());
             order.setTotalCost(gig.getCost());
+            order.setRequirements(normalizeRequirements(req.getRequirements()));
             order.setMaxRevisions(gig.getRevisionCount());
             order.setDeliveryDeadline(LocalDateTime.now().plusDays(gig.getDeliveryTime()));
             addHistory(order, clientId.longValue(), "ORDER_CREATED", null, OrderStatus.PENDING.name(), null);
@@ -202,6 +209,7 @@ public class OrderService {
 
         addHistory(order, userId.longValue(), "STATUS_CHANGE", oldStatus.name(), newStatus.name(), note);
         Order saved = orderRepository.save(order);
+        publishTerminalEventIfNeeded(saved, oldStatus, newStatus);
 
         String routingKey = routingKeyFor(newStatus);
         if (routingKey != null) {
@@ -263,6 +271,14 @@ public class OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "Gig nije dostupan za narudžbu (status: " + gig.getStatus() + ")");
         }
+    }
+
+    private String normalizeRequirements(String requirements) {
+        if (requirements == null) {
+            return null;
+        }
+        String trimmed = requirements.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private void publishTerminalEventIfNeeded(Order order, OrderStatus oldStatus, OrderStatus newStatus) {

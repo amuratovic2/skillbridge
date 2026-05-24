@@ -14,6 +14,8 @@ public class CustomOffer {
 
     private Integer gigId;
 
+    private Long orderId;
+
     @Column(nullable = false)
     private Integer senderId;
 
@@ -48,6 +50,8 @@ public class CustomOffer {
     public void setId(Long id) { this.id = id; }
     public Integer getGigId() { return gigId; }
     public void setGigId(Integer gigId) { this.gigId = gigId; }
+    public Long getOrderId() { return orderId; }
+    public void setOrderId(Long orderId) { this.orderId = orderId; }
     public Integer getSenderId() { return senderId; }
     public void setSenderId(Integer senderId) { this.senderId = senderId; }
     public Integer getReceiverId() { return receiverId; }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   CustomOffer,
   CUSTOM_OFFER_STATUS_META,
@@ -11,6 +12,7 @@ type Tab = 'received' | 'sent';
 
 export default function CustomOffersPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('received');
   const [offers, setOffers] = useState<CustomOffer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +33,11 @@ export default function CustomOffersPage() {
 
   const respond = async (offer: CustomOffer, status: 'ACCEPTED' | 'REJECTED') => {
     try {
-      await customOffersApi.respond(offer.id, status);
+      const updated = await customOffersApi.respond(offer.id, status);
+      if (status === 'ACCEPTED' && updated.orderId) {
+        navigate(`/dashboard/orders/${updated.orderId}`);
+        return;
+      }
       load(tab);
     } catch (err: any) {
       alert(err.response?.data?.message || 'Greška');
@@ -163,6 +169,16 @@ export default function CustomOffersPage() {
                     >
                       Povuci ponudu
                     </button>
+                  </div>
+                )}
+                {offer.status === 'ACCEPTED' && offer.orderId && (
+                  <div className="mt-4">
+                    <Link
+                      to={`/dashboard/orders/${offer.orderId}`}
+                      className="inline-flex text-sm text-primary-600 font-medium hover:underline"
+                    >
+                      Otvori narudžbu #{offer.orderId}
+                    </Link>
                   </div>
                 )}
               </div>

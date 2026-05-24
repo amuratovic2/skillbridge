@@ -85,8 +85,10 @@ export const ordersApi = {
   revenue() {
     return api.get('/orders/my/revenue').then((r) => Number(unwrap<number>(r.data) ?? 0));
   },
-  create(gigId: number) {
-    return api.post('/orders', { gigId }).then((r) => unwrap<Order>(r.data));
+  create(gigId: number, requirements?: string) {
+    return api
+      .post('/orders', { gigId, requirements: requirements?.trim() || undefined })
+      .then((r) => unwrap<Order>(r.data));
   },
   updateStatus(id: number, status: OrderStatus, note?: string) {
     return api
@@ -148,6 +150,7 @@ export type CustomOfferStatus =
 export interface CustomOffer {
   id: number;
   gigId: number | null;
+  orderId: number | null;
   senderId: number;
   receiverId: number;
   title: string;

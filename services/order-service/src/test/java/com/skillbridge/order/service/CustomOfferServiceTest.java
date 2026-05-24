@@ -24,13 +24,19 @@ import com.skillbridge.order.events.CustomOfferEvent;
 import com.skillbridge.order.events.OrderEventPublisher;
 import com.skillbridge.order.model.CustomOffer;
 import com.skillbridge.order.model.CustomOfferStatus;
+import com.skillbridge.order.model.Order;
 import com.skillbridge.order.repository.CustomOfferRepository;
+import com.skillbridge.order.repository.OrderRepository;
+import com.skillbridge.order.saga.OrderPlacedEvent;
+import com.skillbridge.order.saga.OrderSagaPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class CustomOfferServiceTest {
 
     @Mock private CustomOfferRepository repo;
+    @Mock private OrderRepository orderRepository;
     @Mock private OrderEventPublisher eventPublisher;
+    @Mock private OrderSagaPublisher sagaPublisher;
     @InjectMocks private CustomOfferService service;
 
     private CustomOffer pendingOffer(long id, int senderId, int receiverId) {
@@ -86,6 +92,35 @@ class CustomOfferServiceTest {
         verify(eventPublisher).publishCustomOfferEvent(captor.capture());
         assertThat(captor.getValue().eventType()).isEqualTo(RabbitMQConfig.CUSTOM_OFFER_ACCEPTED_KEY);
         assertThat(captor.getValue().status()).isEqualTo("ACCEPTED");
+    }
+
+    @Test
+    void respond_acceptingGigOfferCreatesOrderFromOfferTerms() {
+        CustomOffer offer = pendingOffer(1L, 5, 7);
+        offer.setGigId(11);
+        offer.setDescription("Custom landing page brief");
+        when(repo.findById(1L)).thenReturn(Optional.of(offer));
+        when(orderRepository.save(any())).thenAnswer(inv -> {
+            Order order = inv.getArgument(0);
+            order.setId(77L);
+            return order;
+        });
+        when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        CustomOffer saved = service.respond(1L, 7, CustomOfferStatus.ACCEPTED);
+
+        assertThat(saved.getOrderId()).isEqualTo(77L);
+        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
+        verify(orderRepository).save(orderCaptor.capture());
+        assertThat(orderCaptor.getValue().getClientId()).isEqualTo(7);
+        assertThat(orderCaptor.getValue().getSellerId()).isEqualTo(5);
+        assertThat(orderCaptor.getValue().getGigId()).isEqualTo(11);
+        assertThat(orderCaptor.getValue().getTotalCost()).isEqualByComparingTo("100.00");
+        assertThat(orderCaptor.getValue().getRequirements()).isEqualTo("Custom landing page brief");
+
+        ArgumentCaptor<OrderPlacedEvent> sagaCaptor = ArgumentCaptor.forClass(OrderPlacedEvent.class);
+        verify(sagaPublisher).publishOrderPlaced(sagaCaptor.capture());
+        assertThat(sagaCaptor.getValue().orderId()).isEqualTo(77L);
     }
 
     @Test
