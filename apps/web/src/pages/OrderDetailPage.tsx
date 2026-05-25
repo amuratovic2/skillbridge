@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import FeedbackBanner from '../components/ui/FeedbackBanner';
+import { useToast } from '../context/ToastContext';
 import api, { getApiErrorMessage } from '../lib/api';
 import {
   deliveriesApi,
@@ -32,6 +33,7 @@ export default function OrderDetailPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
   const [order, setOrder] = useState<Order | null>(null);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -69,7 +71,7 @@ export default function OrderDetailPage() {
       setActionSuccess('Status narudzbe je uspjesno azuriran.');
       fetchData();
     } catch (err: unknown) {
-      setActionError(getApiErrorMessage(err, 'Greška'));
+      toast.error(getApiErrorMessage(err, 'Greška pri ažuriranju narudžbe'));
     }
   };
 

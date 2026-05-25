@@ -73,11 +73,11 @@ export default function GigListingPage() {
     return Array.from({ length: end - start + 1 }, (_, index) => start + index);
   }, [meta.totalPages, page]);
 
-  const updateParam = (key: string, value: string) => {
+  const updateParam = (key: string, value: string, resetPage = true) => {
     const p = new URLSearchParams(searchParams);
     if (value) p.set(key, value);
     else p.delete(key);
-    p.set('page', '1');
+    if (resetPage) p.set('page', '1');
     setSearchParams(p);
   };
 

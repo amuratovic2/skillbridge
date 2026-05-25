@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import FeedbackBanner from '../components/ui/FeedbackBanner';
 import { useAuth } from '../context/AuthContext';
 import { getApiErrorMessage } from '../lib/api';
-import { validateEmail } from '../lib/validation';
+import { isValidEmail } from '../lib/validation';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -21,8 +21,10 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
 
-    if (!validateEmail(email)) {
-      setError('Unesite validnu email adresu.');
+    const trimmedEmail = email.trim();
+
+    if (!isValidEmail(trimmedEmail)) {
+      setError('Unesite validan email, npr. korisnik@gmail.com');
       return;
     }
 
@@ -34,7 +36,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login(email.trim(), password);
+      await login(trimmedEmail, password);
       navigate(redirectPath, { replace: true });
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, 'Pogresan email ili lozinka.'));

@@ -1,3 +1,5 @@
+export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
 export type GigFormValues = {
   title: string;
   description: string;
@@ -30,7 +32,11 @@ export function isValidHttpUrl(value: string) {
 }
 
 export function validateEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  return isValidEmail(value);
+}
+
+export function isValidEmail(email: string) {
+  return EMAIL_PATTERN.test(email.trim());
 }
 
 export function parsePositiveInteger(value: string, fieldLabel: string) {

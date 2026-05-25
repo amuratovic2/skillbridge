@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import FeedbackBanner from '../components/ui/FeedbackBanner';
 import { useAuth } from '../context/AuthContext';
 import { getApiErrorMessage } from '../lib/api';
-import { validateEmail } from '../lib/validation';
+import { isValidEmail } from '../lib/validation';
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,30}$/;
 
@@ -40,8 +40,8 @@ export default function RegisterPage() {
       return;
     }
 
-    if (!validateEmail(email)) {
-      setError('Unesite validnu email adresu.');
+    if (!isValidEmail(email)) {
+      setError('Unesite validan email, npr. korisnik@gmail.com');
       return;
     }
 
