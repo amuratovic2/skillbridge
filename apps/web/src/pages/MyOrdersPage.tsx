@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import FeedbackBanner from '../components/ui/FeedbackBanner';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
 import { Order, ORDER_STATUS_META, OrderStatus, ordersApi } from '../lib/orders';
 
 type Filter = 'ALL' | OrderStatus;
+type Flash = { type: 'success' | 'error' | 'info'; text: string };
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'ALL', label: 'Sve' },
@@ -19,6 +21,8 @@ const FILTERS: { id: Filter; label: string }[] = [
 
 export default function MyOrdersPage() {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [gigTitles, setGigTitles] = useState<Record<number, string>>({});
   const [partyNames, setPartyNames] = useState<Record<number, string>>({});
@@ -26,6 +30,10 @@ export default function MyOrdersPage() {
   const [filter, setFilter] = useState<Filter>('ALL');
 
   const isFreelancer = user?.role === 'FREELANCER';
+  const flash = (location.state as { flash?: Flash } | null)?.flash;
+  const dismissFlash = () => {
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  };
 
   useEffect(() => {
     let active = true;
@@ -94,6 +102,17 @@ export default function MyOrdersPage() {
           </Link>
         )}
       </div>
+
+      {flash && (
+        <FeedbackBanner type={flash.type} className="mb-6">
+          <div className="flex items-center justify-between gap-3">
+            <span>{flash.text}</span>
+            <button type="button" onClick={dismissFlash} className="text-xs font-medium underline">
+              Zatvori
+            </button>
+          </div>
+        </FeedbackBanner>
+      )}
 
       <div className="flex flex-wrap gap-2 mb-6">
         {FILTERS.map((item) => (

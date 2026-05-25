@@ -13,6 +13,16 @@
     "dev:order": "cd services/order-service && mvn spring-boot:run",
     "dev:comm": "cd services/communication-service && mvn spring-boot:run"
   },
+  "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "@swc/core",
+      "esbuild",
+      "less",
+      "nx"
+    ]
+  },
   "private": true,
   "devDependencies": {
     "@eslint/js": "^9.8.0",

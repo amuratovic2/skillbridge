@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import FeedbackBanner from '../components/ui/FeedbackBanner';
 import api, { getApiErrorMessage } from '../lib/api';
 import {
   deliveriesApi,
@@ -24,8 +25,12 @@ interface Message {
   sentAt: string;
 }
 
+type Flash = { type: 'success' | 'error' | 'info'; text: string };
+
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
@@ -37,6 +42,8 @@ export default function OrderDetailPage() {
   const [deliverOpen, setDeliverOpen] = useState(false);
   const [versionOpen, setVersionOpen] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const flash = (location.state as { flash?: Flash } | null)?.flash;
 
   const fetchData = useCallback(() => {
     if (!id) return;
@@ -56,8 +63,10 @@ export default function OrderDetailPage() {
   const handleStatusChange = async (newStatus: Order['status']) => {
     if (!order) return;
     setActionError(null);
+    setActionSuccess(null);
     try {
       await ordersApi.updateStatus(order.id, newStatus);
+      setActionSuccess('Status narudzbe je uspjesno azuriran.');
       fetchData();
     } catch (err: unknown) {
       setActionError(getApiErrorMessage(err, 'Greška'));
@@ -69,6 +78,8 @@ export default function OrderDetailPage() {
     if (!newMessage.trim() || !order || !user) return;
 
     const otherUserId = user.id === order.clientId ? order.sellerId : order.clientId;
+    setActionError(null);
+    setActionSuccess(null);
     try {
       await api.post('/messages', {
         receiverId: otherUserId,
@@ -76,9 +87,10 @@ export default function OrderDetailPage() {
         content: newMessage,
       });
       setNewMessage('');
+      setActionSuccess('Poruka je uspjesno poslana.');
       fetchData();
-    } catch {
-      /* ignore */
+    } catch (err: unknown) {
+      setActionError(getApiErrorMessage(err, 'Slanje poruke nije uspjelo.'));
     }
   };
 
@@ -101,9 +113,22 @@ export default function OrderDetailPage() {
   const isSeller = user?.id === order.sellerId;
   const isAdmin = user?.role === 'ADMIN';
   const revisionsLeft = Math.max(order.maxRevisions - order.usedRevisions, 0);
+  const dismissFlash = () => {
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {flash && (
+        <FeedbackBanner type={flash.type} className="mb-6">
+          <div className="flex items-center justify-between gap-3">
+            <span>{flash.text}</span>
+            <button type="button" onClick={dismissFlash} className="text-xs font-medium underline">
+              Zatvori
+            </button>
+          </div>
+        </FeedbackBanner>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white border border-gray-200 rounded-xl p-6">
@@ -256,6 +281,11 @@ export default function OrderDetailPage() {
               {actionError}
             </p>
           )}
+          {actionSuccess && (
+            <p className="text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-4 py-3">
+              {actionSuccess}
+            </p>
+          )}
 
           <div className="bg-white border border-gray-200 rounded-xl p-6 lg:sticky lg:top-24">
             <h2 className="font-semibold text-gray-900 mb-4">Historija</h2>
@@ -291,6 +321,7 @@ export default function OrderDetailPage() {
           onClose={() => setCancelOpen(false)}
           onDone={() => {
             setCancelOpen(false);
+            setActionSuccess('Narudzba je uspjesno otkazana.');
             fetchData();
           }}
         />
@@ -302,6 +333,7 @@ export default function OrderDetailPage() {
           onClose={() => setRevisionOpen(false)}
           onDone={() => {
             setRevisionOpen(false);
+            setActionSuccess('Zahtjev za reviziju je poslan.');
             fetchData();
           }}
         />
@@ -313,6 +345,7 @@ export default function OrderDetailPage() {
           onClose={() => setDeliverOpen(false)}
           onDone={() => {
             setDeliverOpen(false);
+            setActionSuccess('Isporuka je uspjesno poslana.');
             fetchData();
           }}
         />

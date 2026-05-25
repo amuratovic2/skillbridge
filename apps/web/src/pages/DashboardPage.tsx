@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import FeedbackBanner from '../components/ui/FeedbackBanner';
 import { useAuth } from '../context/AuthContext';
 import api from '../lib/api';
 import { ordersApi } from '../lib/orders';
@@ -12,8 +13,12 @@ interface CardDef {
   variant?: 'default' | 'danger';
 }
 
+type Flash = { type: 'success' | 'error' | 'info'; text: string };
+
 export default function DashboardPage() {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({ orders: 0, rating: 0, reviews: 0 });
 
   const isFreelancer = user?.role === 'FREELANCER';
@@ -127,10 +132,25 @@ export default function DashboardPage() {
     : isAdmin
       ? [...baseCards, ...adminCards]
       : [...baseCards, ...clientCards];
+  const flash = (location.state as { flash?: Flash } | null)?.flash;
+  const dismissFlash = () => {
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-8">Dashboard</h1>
+
+      {flash && (
+        <FeedbackBanner type={flash.type} className="mb-6">
+          <div className="flex items-center justify-between gap-3">
+            <span>{flash.text}</span>
+            <button type="button" onClick={dismissFlash} className="text-xs font-medium underline">
+              Zatvori
+            </button>
+          </div>
+        </FeedbackBanner>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white border border-gray-200 rounded-xl p-6">

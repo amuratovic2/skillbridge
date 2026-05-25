@@ -21,6 +21,7 @@ export default function CustomOffersPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const isFreelancer = user?.role === 'FREELANCER';
 
@@ -60,9 +61,12 @@ export default function CustomOffersPage() {
     try {
       const updated = await customOffersApi.respond(offer.id, status);
       if (status === 'ACCEPTED' && updated.orderId) {
-        navigate(`/dashboard/orders/${updated.orderId}`);
+        navigate(`/dashboard/orders/${updated.orderId}`, {
+          state: { flash: { type: 'success', text: 'Ponuda je prihvacena i narudzba je kreirana.' } },
+        });
         return;
       }
+      setSuccess(status === 'REJECTED' ? 'Ponuda je odbijena.' : 'Ponuda je azurirana.');
       load(tab);
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, 'Greška'));
@@ -72,6 +76,7 @@ export default function CustomOffersPage() {
   const withdraw = async (offer: CustomOffer) => {
     try {
       await customOffersApi.withdraw(offer.id);
+      setSuccess('Ponuda je povucena.');
       load(tab);
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, 'Greška'));
@@ -113,6 +118,11 @@ export default function CustomOffersPage() {
       {error && (
         <div className="mb-6 bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm">
           {error}
+        </div>
+      )}
+      {success && (
+        <div className="mb-6 bg-green-50 text-green-700 px-4 py-3 rounded-lg text-sm">
+          {success}
         </div>
       )}
 
@@ -223,6 +233,7 @@ export default function CustomOffersPage() {
           onClose={() => setCreating(false)}
           onCreated={() => {
             setCreating(false);
+            setSuccess('Ponuda je uspjesno poslana.');
             setTab('sent');
             load('sent');
           }}

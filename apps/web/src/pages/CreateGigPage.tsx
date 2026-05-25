@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import FeedbackBanner from '../components/ui/FeedbackBanner';
 import api, { getApiErrorMessage } from '../lib/api';
+import { validateGigForm } from '../lib/validation';
 
 interface CategoryOption {
   id: number;
@@ -23,7 +25,10 @@ export default function CreateGigPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get('/categories').then((res) => setCategories(res.data.data || [])).catch(() => {});
+    api
+      .get('/categories')
+      .then((res) => setCategories(res.data.data || []))
+      .catch(() => setError('Kategorije trenutno nije moguce ucitati.'));
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -36,53 +41,18 @@ export default function CreateGigPage() {
     setLoading(true);
 
     try {
-      const categoryId = Number.parseInt(formData.categoryId, 10);
-      const cost = Number.parseFloat(formData.cost);
-      const deliveryTime = Number.parseInt(formData.deliveryTime, 10);
-      const revisionCount = Number.parseInt(formData.revisionCount, 10);
+      const payload = validateGigForm(formData);
+      await api.post('/gigs', payload);
 
-      if (!Number.isInteger(categoryId) || categoryId <= 0) {
-        setError('Izaberite validnu kategoriju.');
-        setLoading(false);
-        return;
-      }
-
-      if (!Number.isFinite(cost) || cost <= 0) {
-        setError('Cijena mora biti broj veći od 0.');
-        setLoading(false);
-        return;
-      }
-
-      if (!Number.isInteger(deliveryTime) || deliveryTime <= 0) {
-        setError('Rok isporuke mora biti cijeli broj veći od 0.');
-        setLoading(false);
-        return;
-      }
-
-      if (!Number.isInteger(revisionCount) || revisionCount < 0) {
-        setError('Broj revizija mora biti 0 ili veći.');
-        setLoading(false);
-        return;
-      }
-
-      const tags = formData.tags
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean);
-
-      await api.post('/gigs', {
-        title: formData.title,
-        description: formData.description,
-        categoryId,
-        cost,
-        deliveryTime,
-        revisionCount,
-        tags,
+      navigate('/gigs', {
+        state: { flash: { type: 'success', text: 'Usluga je uspjesno objavljena.' } },
       });
-
-      navigate('/gigs');
     } catch (err: unknown) {
-      setError(getApiErrorMessage(err, 'Greška pri kreiranju usluge'));
+      if (err && typeof err === 'object' && 'isAxiosError' in err) {
+        setError(getApiErrorMessage(err, 'Greska pri kreiranju usluge.'));
+      } else {
+        setError(err instanceof Error ? err.message : 'Greska pri kreiranju usluge.');
+      }
     } finally {
       setLoading(false);
     }
@@ -93,9 +63,7 @@ export default function CreateGigPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-8">Kreiraj novu uslugu</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
-          <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">{error}</div>
-        )}
+        {error && <FeedbackBanner type="error">{error}</FeedbackBanner>}
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Naslov usluge</label>
@@ -105,6 +73,8 @@ export default function CreateGigPage() {
             value={formData.title}
             onChange={handleChange}
             required
+            minLength={5}
+            maxLength={120}
             placeholder="npr. Profesionalni dizajn logotipa"
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
           />
@@ -117,7 +87,10 @@ export default function CreateGigPage() {
             value={formData.description}
             onChange={handleChange}
             rows={5}
-            placeholder="Opišite svoju uslugu detaljno..."
+            required
+            minLength={20}
+            maxLength={2000}
+            placeholder="Opisite svoju uslugu detaljno..."
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none resize-none"
           />
         </div>
@@ -133,12 +106,14 @@ export default function CreateGigPage() {
           >
             <option value="">Izaberite kategoriju</option>
             {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>{cat.title}</option>
+              <option key={cat.id} value={cat.id}>
+                {cat.title}
+              </option>
             ))}
           </select>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Cijena (&euro;)</label>
             <input
@@ -148,6 +123,7 @@ export default function CreateGigPage() {
               onChange={handleChange}
               required
               min="1"
+              step="0.01"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
             />
           </div>
@@ -160,6 +136,7 @@ export default function CreateGigPage() {
               onChange={handleChange}
               required
               min="1"
+              step="1"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
             />
           </div>
@@ -172,6 +149,7 @@ export default function CreateGigPage() {
               onChange={handleChange}
               required
               min="0"
+              step="1"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
             />
           </div>

@@ -33,7 +33,9 @@ export default function CartPage() {
       }
 
       clear();
-      navigate('/dashboard/orders');
+      navigate('/dashboard/orders', {
+        state: { flash: { type: 'success', text: 'Narudzbe su uspjesno kreirane.' } },
+      });
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, 'Greška pri kreiranju narudžbi. Korpa nije ispražnjena.'));
     } finally {

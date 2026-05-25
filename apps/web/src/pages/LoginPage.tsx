@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import FeedbackBanner from '../components/ui/FeedbackBanner';
 import { useAuth } from '../context/AuthContext';
 import { getApiErrorMessage } from '../lib/api';
+import { validateEmail } from '../lib/validation';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -18,13 +20,24 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!validateEmail(email)) {
+      setError('Unesite validnu email adresu.');
+      return;
+    }
+
+    if (!password.trim()) {
+      setError('Unesite lozinku.');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(email.trim(), password);
       navigate(redirectPath, { replace: true });
     } catch (err: unknown) {
-      setError(getApiErrorMessage(err, 'Pogrešan email ili lozinka'));
+      setError(getApiErrorMessage(err, 'Pogresan email ili lozinka.'));
     } finally {
       setLoading(false);
     }
@@ -35,22 +48,14 @@ export default function LoginPage() {
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Prijava</h1>
-          <p className="text-gray-500 mt-2">
-            Dobrodošli nazad na SkillBridge
-          </p>
+          <p className="text-gray-500 mt-2">Dobrodosli nazad na SkillBridge</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {error && (
-            <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
+        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+          {error && <FeedbackBanner type="error">{error}</FeedbackBanner>}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
               type="email"
               value={email}
@@ -62,9 +67,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Lozinka
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Lozinka</label>
             <input
               type="password"
               value={password}

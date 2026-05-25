@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import FeedbackBanner from '../components/ui/FeedbackBanner';
 import { useAuth } from '../context/AuthContext';
 import { getApiErrorMessage } from '../lib/api';
+import { validateEmail } from '../lib/validation';
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,30}$/;
 
@@ -28,19 +30,33 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Lozinke se ne podudaraju');
+    const username = formData.username.trim();
+    const email = formData.email.trim();
+    const firstName = formData.firstName.trim();
+    const lastName = formData.lastName.trim();
+
+    if (!USERNAME_PATTERN.test(username)) {
+      setError('Korisnicko ime mora imati 3-30 karaktera i smije sadrzavati samo slova, brojeve i donju crtu.');
       return;
     }
 
-    const username = formData.username.trim();
-    if (!USERNAME_PATTERN.test(username)) {
-      setError('Korisničko ime mora imati 3-30 karaktera i smije sadržavati samo slova, brojeve i donju crtu');
+    if (!validateEmail(email)) {
+      setError('Unesite validnu email adresu.');
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('Lozinka mora imati najmanje 6 karaktera');
+      setError('Lozinka mora imati najmanje 6 karaktera.');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Lozinke se ne podudaraju.');
+      return;
+    }
+
+    if (firstName.length > 50 || lastName.length > 50) {
+      setError('Ime i prezime mogu imati najvise 50 karaktera.');
       return;
     }
 
@@ -49,15 +65,15 @@ export default function RegisterPage() {
     try {
       await register({
         username,
-        email: formData.email,
+        email,
         password: formData.password,
         role: formData.role,
-        firstName: formData.firstName || undefined,
-        lastName: formData.lastName || undefined,
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
       });
-      navigate('/dashboard');
+      navigate('/dashboard', { state: { flash: { type: 'success', text: 'Registracija je uspjesno zavrsena.' } } });
     } catch (err: unknown) {
-      setError(getApiErrorMessage(err, 'Greška pri registraciji'));
+      setError(getApiErrorMessage(err, 'Greska pri registraciji.'));
     } finally {
       setLoading(false);
     }
@@ -68,19 +84,12 @@ export default function RegisterPage() {
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Registracija</h1>
-          <p className="text-gray-500 mt-2">
-            Kreirajte svoj SkillBridge nalog
-          </p>
+          <p className="text-gray-500 mt-2">Kreirajte svoj SkillBridge nalog</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          {error && <FeedbackBanner type="error">{error}</FeedbackBanner>}
 
-          {/* Role selector */}
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
@@ -114,6 +123,7 @@ export default function RegisterPage() {
                 name="firstName"
                 value={formData.firstName}
                 onChange={handleChange}
+                maxLength={50}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
               />
             </div>
@@ -124,13 +134,14 @@ export default function RegisterPage() {
                 name="lastName"
                 value={formData.lastName}
                 onChange={handleChange}
+                maxLength={50}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Korisničko ime</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Korisnicko ime</label>
             <input
               type="text"
               name="username"
@@ -164,6 +175,7 @@ export default function RegisterPage() {
               value={formData.password}
               onChange={handleChange}
               required
+              minLength={6}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
             />
           </div>
@@ -176,6 +188,7 @@ export default function RegisterPage() {
               value={formData.confirmPassword}
               onChange={handleChange}
               required
+              minLength={6}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
             />
           </div>
@@ -190,7 +203,7 @@ export default function RegisterPage() {
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-6">
-          Već imate nalog?{' '}
+          Vec imate nalog?{' '}
           <Link to="/login" className="text-primary-600 font-medium hover:text-primary-700">
             Prijavite se
           </Link>

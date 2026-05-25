@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import StarRating from '../components/ui/StarRating';
 import Modal from '../components/ui/Modal';
+import FeedbackBanner from '../components/ui/FeedbackBanner';
 import api, { getApiErrorMessage } from '../lib/api';
 import OrderCheckoutModal from './order/OrderCheckoutModal';
 
@@ -32,9 +33,12 @@ interface FreelancerSummary {
   lastName?: string;
 }
 
+type Flash = { type: 'success' | 'error' | 'info'; text: string };
+
 export default function GigDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated } = useAuth();
   const { add: addToCart, items: cartItems } = useCart();
   const [gig, setGig] = useState<GigDetail | null>(null);
@@ -44,10 +48,12 @@ export default function GigDetailPage() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   const isOwner = user && gig && user.id === gig.freelancerId;
   const isFreelancer = user?.role === 'FREELANCER';
   const canOrder = !isOwner && !isFreelancer;
+  const flash = (location.state as { flash?: Flash } | null)?.flash;
 
   useEffect(() => {
     api
@@ -70,6 +76,7 @@ export default function GigDetailPage() {
 
   const handleOrder = async () => {
     if (!isAuthenticated) { navigate('/login'); return; }
+    setActionSuccess(null);
     if (!canOrder) {
       setActionError('Freelanceri ne mogu naručivati gigove. Za kupovinu koristite klijentski nalog.');
       return;
@@ -81,7 +88,9 @@ export default function GigDetailPage() {
     setActionError(null);
     try {
       await api.delete(`/gigs/${id}`);
-      navigate('/gigs');
+      navigate('/gigs', {
+        state: { flash: { type: 'success', text: 'Usluga je uspjesno obrisana.' } },
+      });
     } catch (err: unknown) {
       setActionError(getApiErrorMessage(err, 'Greška pri brisanju'));
       setDeleteOpen(false);
@@ -106,9 +115,22 @@ export default function GigDetailPage() {
     ? freelancerNameParts.join(' ') || freelancer.username
     : 'Freelancer';
   const freelancerInitial = freelancerName.charAt(0).toUpperCase();
+  const dismissFlash = () => {
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {flash && (
+        <FeedbackBanner type={flash.type} className="mb-6">
+          <div className="flex items-center justify-between gap-3">
+            <span>{flash.text}</span>
+            <button type="button" onClick={dismissFlash} className="text-xs font-medium underline">
+              Zatvori
+            </button>
+          </div>
+        </FeedbackBanner>
+      )}
       <Link to="/gigs" className="text-sm text-gray-500 hover:text-gray-700 mb-4 inline-flex items-center gap-1">
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -226,6 +248,8 @@ export default function GigDetailPage() {
                         cost: Number(gig.cost),
                         deliveryTime: gig.deliveryTime,
                       });
+                      setActionError(null);
+                      setActionSuccess('Usluga je dodana u korpu.');
                     }}
                     className="w-full border border-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors mb-3"
                   >
@@ -258,6 +282,7 @@ export default function GigDetailPage() {
               </p>
             )}
             {actionError && <p className="text-sm text-red-600 mt-3">{actionError}</p>}
+            {actionSuccess && <p className="text-sm text-green-700 mt-3">{actionSuccess}</p>}
           </div>
         </div>
       </div>

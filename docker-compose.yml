@@ -1,22 +1,47 @@
+name: skillbridge
+
+x-java-service: &java-service
+  restart: unless-stopped
+  environment: &java-env
+    EUREKA_SERVER_URL: http://discovery-service:8761/eureka
+    GATEWAY_INTERNAL_SECRET: skillbridge-dev-gateway-secret
+    GATEWAY_SECURITY_ENABLED: "true"
+    GATEWAY_SECURITY_ALLOW_SHARED_SECRET: "true"
+    RABBITMQ_HOST: skillbridge-rabbitmq
+    RABBITMQ_PORT: "5672"
+    RABBITMQ_USER: skillbridge
+    RABBITMQ_PASS: skillbridge
+    JAVA_TOOL_OPTIONS: >-
+      -XX:+UseContainerSupport
+      -XX:MaxRAMPercentage=70
+      -XX:+TieredCompilation
+      -XX:TieredStopAtLevel=1
+      -Djava.security.egd=file:/dev/./urandom
+  networks:
+    - skillbridge-net
+
 services:
   skillbridge-db:
     image: postgres:16-alpine
     container_name: skillbridge-postgres
     restart: unless-stopped
     ports:
-      - '5433:5432'
+      - "5433:5432"
     environment:
       POSTGRES_USER: skillbridge
       POSTGRES_PASSWORD: skillbridge123
       POSTGRES_DB: skillbridge
     volumes:
       - skillbridge_pgdata:/var/lib/postgresql/data
-      - ./docker/init-schemas.sql:/docker-entrypoint-initdb.d/01-init-schemas.sql
+      - ./docker/init-schemas.sql:/docker-entrypoint-initdb.d/01-init-schemas.sql:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U skillbridge -d skillbridge']
+      test: ["CMD-SHELL", "pg_isready -U skillbridge -d skillbridge"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+    mem_limit: 256m
+    networks:
+      - skillbridge-net
 
   skillbridge-db-migrate:
     image: postgres:16-alpine
@@ -32,22 +57,215 @@ services:
       sh -c "psql -h skillbridge-db -U skillbridge -d skillbridge
       -v ON_ERROR_STOP=1 -f /docker/schema/sync-schema.sql"
     restart: "no"
+    networks:
+      - skillbridge-net
 
   skillbridge-rabbitmq:
     image: rabbitmq:3.13-management-alpine
     container_name: skillbridge-rabbitmq
     restart: unless-stopped
     ports:
-      - '5672:5672'    # AMQP
-      - '15672:15672'  # Management UI (http://localhost:15672, user: skillbridge / skillbridge)
+      - "5672:5672"
+      - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: skillbridge
       RABBITMQ_DEFAULT_PASS: skillbridge
     healthcheck:
-      test: ['CMD', 'rabbitmq-diagnostics', 'ping']
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+    mem_limit: 256m
+    networks:
+      - skillbridge-net
+
+  discovery-service:
+    <<: *java-service
+    container_name: skillbridge-discovery
+    build:
+      context: .
+      dockerfile: services/discovery-service/Dockerfile
+    ports:
+      - "8761:8761"
+    environment:
+      JAVA_TOOL_OPTIONS: >-
+        -XX:+UseContainerSupport
+        -XX:MaxRAMPercentage=65
+        -XX:+TieredCompilation
+        -XX:TieredStopAtLevel=1
+        -Djava.security.egd=file:/dev/./urandom
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8761/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
+    mem_limit: 320m
+
+  user-service:
+    <<: *java-service
+    container_name: skillbridge-user
+    build:
+      context: .
+      dockerfile: services/user-service/Dockerfile
+    depends_on:
+      skillbridge-db-migrate:
+        condition: service_completed_successfully
+      discovery-service:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    environment:
+      <<: *java-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://skillbridge-db:5432/skillbridge?currentSchema=users
+      SPRING_DATASOURCE_USERNAME: skillbridge
+      SPRING_DATASOURCE_PASSWORD: skillbridge123
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:3001/api/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 40s
+    mem_limit: 384m
+
+  gig-service:
+    <<: *java-service
+    container_name: skillbridge-gig
+    build:
+      context: .
+      dockerfile: services/gig-service/Dockerfile
+    depends_on:
+      skillbridge-db-migrate:
+        condition: service_completed_successfully
+      skillbridge-rabbitmq:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+    ports:
+      - "3002:3002"
+    environment:
+      <<: *java-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://skillbridge-db:5432/skillbridge?currentSchema=gigs&stringtype=unspecified
+      SPRING_DATASOURCE_USERNAME: skillbridge
+      SPRING_DATASOURCE_PASSWORD: skillbridge123
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:3002/api/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 40s
+    mem_limit: 384m
+
+  order-service:
+    <<: *java-service
+    container_name: skillbridge-order
+    build:
+      context: .
+      dockerfile: services/order-service/Dockerfile
+    depends_on:
+      skillbridge-db-migrate:
+        condition: service_completed_successfully
+      skillbridge-rabbitmq:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+      gig-service:
+        condition: service_healthy
+    ports:
+      - "3003:3003"
+    environment:
+      <<: *java-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://skillbridge-db:5432/skillbridge?currentSchema=orders&stringtype=unspecified
+      SPRING_DATASOURCE_USERNAME: skillbridge
+      SPRING_DATASOURCE_PASSWORD: skillbridge123
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:3003/api/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 40s
+    mem_limit: 448m
+
+  communication-service:
+    <<: *java-service
+    container_name: skillbridge-communication
+    build:
+      context: .
+      dockerfile: services/communication-service/Dockerfile
+    depends_on:
+      skillbridge-db-migrate:
+        condition: service_completed_successfully
+      skillbridge-rabbitmq:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    ports:
+      - "3004:3004"
+    environment:
+      <<: *java-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://skillbridge-db:5432/skillbridge?currentSchema=communication
+      SPRING_DATASOURCE_USERNAME: skillbridge
+      SPRING_DATASOURCE_PASSWORD: skillbridge123
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:3004/api/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 40s
+    mem_limit: 384m
+
+  api-gateway:
+    <<: *java-service
+    container_name: skillbridge-gateway
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      gig-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      communication-service:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      <<: *java-env
+      SERVICES_USER_SERVICE_URL: http://user-service:3001
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:3000/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 40s
+    mem_limit: 384m
+
+  web:
+    container_name: skillbridge-web
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: http://localhost:3000/api
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    ports:
+      - "4200:80"
+    restart: unless-stopped
+    mem_limit: 96m
+    networks:
+      - skillbridge-net
 
 volumes:
   skillbridge_pgdata:
+
+networks:
+  skillbridge-net:
+    driver: bridge

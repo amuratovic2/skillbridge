@@ -16,9 +16,33 @@ function clearSession() {
 
 export function getApiErrorMessage(error: unknown, fallback: string) {
   if (axios.isAxiosError(error)) {
-    const data = error.response?.data as { message?: unknown } | undefined;
+    const data = error.response?.data as
+      | { message?: unknown; error?: unknown; errors?: unknown }
+      | undefined;
     if (typeof data?.message === 'string' && data.message.trim()) {
       return data.message;
+    }
+
+    if (typeof data?.error === 'string' && data.error.trim()) {
+      return data.error;
+    }
+
+    if (Array.isArray(data?.errors)) {
+      const messages = data.errors.filter(
+        (item): item is string => typeof item === 'string' && item.trim().length > 0,
+      );
+      if (messages.length > 0) {
+        return messages.join(' ');
+      }
+    }
+
+    if (data?.errors && typeof data.errors === 'object') {
+      const messages = Object.values(data.errors).filter(
+        (item): item is string => typeof item === 'string' && item.trim().length > 0,
+      );
+      if (messages.length > 0) {
+        return messages.join(' ');
+      }
     }
   }
 

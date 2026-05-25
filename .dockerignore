@@ -1,0 +1,14 @@
+.git
+.gitignore
+.nx
+.pnpm-store
+.vscode
+dist
+node_modules
+**/node_modules
+**/target
+*.log
+web-*.log
+README.md
+postman
+docs
