@@ -17,6 +17,18 @@
         "command": "vite build --config apps/web/vite.config.mts"
       }
     },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run --config apps/web/vite.config.mts"
+      }
+    },
+    "coverage": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run --coverage --config apps/web/vite.config.mts"
+      }
+    },
     "preview": {
       "executor": "nx:run-commands",
       "options": {
