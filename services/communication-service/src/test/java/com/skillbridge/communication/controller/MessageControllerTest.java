@@ -1,6 +1,7 @@
 package com.skillbridge.communication.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.skillbridge.communication.messaging.MessageEventPublisher;
 import com.skillbridge.communication.model.Message;
 import com.skillbridge.communication.repository.MessageRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -37,6 +39,9 @@ class MessageControllerTest {
 
     @Autowired
     private MessageRepository messageRepository;
+
+    @MockitoBean
+    private MessageEventPublisher messageEventPublisher;
 
     @BeforeEach
     void setUp() {
@@ -205,6 +210,7 @@ class MessageControllerTest {
         createMessage(2, 1, 11, "Poruka za narudzbu 11", LocalDateTime.now().minusMinutes(1), false);
 
         mockMvc.perform(get("/messages/order/10")
+                .header("x-user-id", 1)
                 .param("page", "1")
                 .param("limit", "10"))
             .andExpect(status().isOk())
@@ -220,6 +226,7 @@ class MessageControllerTest {
         createMessage(2, 1, 10, "A poruka", LocalDateTime.now().minusMinutes(1), false);
 
         mockMvc.perform(get("/messages/order/10")
+                .header("x-user-id", 1)
                 .param("page", "1")
                 .param("limit", "10")
                 .param("sortBy", "content")
@@ -235,11 +242,25 @@ class MessageControllerTest {
     @Test
     void getByOrderRejectsUnsupportedSortField() throws Exception {
         mockMvc.perform(get("/messages/order/10")
+                .header("x-user-id", 1)
                 .param("sortBy", "deletedAt"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error").value("bad_request"))
             .andExpect(jsonPath("$.message").value("Unsupported sort field: deletedAt"));
+    }
+
+    @Test
+    void getByOrderHidesMessagesForNonParticipant() throws Exception {
+        createMessage(1, 2, 10, "Privatna poruka", LocalDateTime.now(), false);
+
+        mockMvc.perform(get("/messages/order/10")
+                .header("x-user-id", 9)
+                .param("page", "1")
+                .param("limit", "10"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data").isEmpty());
     }
 
     @Test

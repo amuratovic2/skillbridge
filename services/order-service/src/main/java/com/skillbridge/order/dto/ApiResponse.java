@@ -22,6 +22,12 @@ public class ApiResponse<T> {
         return r;
     }
 
+    public static <T> ApiResponse<T> accepted(T data, String message) {
+        ApiResponse<T> r = ok(data);
+        r.message = message;
+        return r;
+    }
+
     public static <T> ApiResponse<T> error(String message) {
         ApiResponse<T> r = new ApiResponse<>();
         r.success = false;

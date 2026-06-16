@@ -1,5 +1,7 @@
 package com.skillbridge.order.controller;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -40,22 +42,27 @@ public class OrderController {
     }
 
     @PostMapping
-    public ApiResponse<?> create(
+    public ResponseEntity<ApiResponse<?>> create(
         @RequestHeader("x-user-id") Integer userId,
         @Valid @RequestBody CreateOrderRequest request
     ) {
-        return ApiResponse.ok(OrderMapper.toDTO(
-            orderService.create(userId, request.getGigId(), request.getRequirements())
+        var order = OrderMapper.toDTO(orderService.create(userId, request.getGigId(), request.getRequirements()));
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.accepted(
+            order,
+            "Kreiranje narudzbe je zapoceto. Zavrsni rezultat validacije stize kroz notifikaciju."
         ));
     }
 
     @PostMapping("/batch")
-    public ApiResponse<?> batchCreate(
+    public ResponseEntity<ApiResponse<?>> batchCreate(
         @RequestHeader("x-user-id") Integer userId,
         @Valid @RequestBody BatchCreateOrderRequest request
     ) {
         var orders = orderService.batchCreate(userId, request.getOrders());
-        return ApiResponse.ok(orders.stream().map(OrderMapper::toDTO).toList());
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.accepted(
+            orders.stream().map(OrderMapper::toDTO).toList(),
+            "Kreiranje narudzbi je zapoceto. Zavrsni rezultat validacije stize kroz notifikacije."
+        ));
     }
 
     @GetMapping("/my/buying")
@@ -83,8 +90,12 @@ public class OrderController {
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<?> findById(@PathVariable Long id) {
-        return ApiResponse.ok(OrderMapper.toDTO(orderService.findById(id)));
+    public ApiResponse<?> findById(
+        @PathVariable Long id,
+        @RequestHeader("x-user-id") Integer userId,
+        @RequestHeader("x-user-role") String userRole
+    ) {
+        return ApiResponse.ok(OrderMapper.toDTO(orderService.findByIdForUser(id, userId, userRole)));
     }
 
     @GetMapping("/my/buying/status/{status}")
@@ -129,9 +140,11 @@ public class OrderController {
     @PatchMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE + ";charset=UTF-8")
     public ApiResponse<?> patch(
         @PathVariable Long id,
+        @RequestHeader("x-user-id") Integer userId,
+        @RequestHeader("x-user-role") String userRole,
         @RequestBody JsonPatch patch
     ) {
-        return ApiResponse.ok(OrderMapper.toDTO(orderPatchService.patch(id, patch)));
+        return ApiResponse.ok(OrderMapper.toDTO(orderPatchService.patch(id, userId, userRole, patch)));
     }
 
     @PostMapping("/{id}/revision")

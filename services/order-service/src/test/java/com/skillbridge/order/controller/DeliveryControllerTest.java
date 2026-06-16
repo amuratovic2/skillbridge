@@ -74,26 +74,32 @@ class DeliveryControllerTest {
 
     @Test
     void findByOrderId_returnsDeliveries() throws Exception {
-        when(deliveryService.findByOrderId(1L)).thenReturn(List.of(fakeDelivery()));
+        when(deliveryService.findByOrderId(eq(1L), eq(1), eq("CLIENT"))).thenReturn(List.of(fakeDelivery()));
 
-        mockMvc.perform(get("/deliveries/order/1"))
+        mockMvc.perform(get("/deliveries/order/1")
+                .header("x-user-id", 1)
+                .header("x-user-role", "CLIENT"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
     }
 
     @Test
     void findByVersion_notFound_returns404() throws Exception {
-        when(deliveryService.findByVersion(1L, 99)).thenReturn(Optional.empty());
+        when(deliveryService.findByVersion(eq(1L), eq(99), eq(1), eq("CLIENT"))).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/deliveries/order/1/version/99"))
+        mockMvc.perform(get("/deliveries/order/1/version/99")
+                .header("x-user-id", 1)
+                .header("x-user-role", "CLIENT"))
             .andExpect(status().isNotFound());
     }
 
     @Test
     void findByVersion_success() throws Exception {
-        when(deliveryService.findByVersion(1L, 1)).thenReturn(Optional.of(fakeDelivery()));
+        when(deliveryService.findByVersion(eq(1L), eq(1), eq(1), eq("CLIENT"))).thenReturn(Optional.of(fakeDelivery()));
 
-        mockMvc.perform(get("/deliveries/order/1/version/1"))
+        mockMvc.perform(get("/deliveries/order/1/version/1")
+                .header("x-user-id", 1)
+                .header("x-user-role", "CLIENT"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
     }

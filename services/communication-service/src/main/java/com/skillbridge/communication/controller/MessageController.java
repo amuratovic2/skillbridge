@@ -59,13 +59,14 @@ public class MessageController {
 
     @GetMapping("/order/{orderId}")
     public ApiResponse<?> getByOrder(
+        @RequestHeader("x-user-id") @Positive Integer userId,
         @PathVariable @Positive Integer orderId,
         @RequestParam(defaultValue = "1") @Min(1) int page,
         @RequestParam(defaultValue = "20") @Min(1) @Max(100) int limit,
         @RequestParam(defaultValue = "sentAt") String sortBy,
         @RequestParam(defaultValue = "desc") String direction
     ) {
-        var result = messageService.getConversationsByOrder(orderId, page, limit, sortBy, direction);
+        var result = messageService.getConversationsByOrder(orderId, userId, page, limit, sortBy, direction);
         return ApiResponse.ok(result.data(), result.meta());
     }
 

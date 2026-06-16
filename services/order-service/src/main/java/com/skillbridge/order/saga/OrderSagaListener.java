@@ -68,6 +68,12 @@ public class OrderSagaListener {
                 addHistory(order, "SAGA_CONFIRMED", OrderStatus.PENDING, OrderStatus.PENDING,
                     "Gig potvrđen – čeka prihvat freelancera");
                 orderRepository.save(order);
+                eventPublisher.publishOrderEvent(OrderEvent.of(
+                    RabbitMQConfig.ORDER_VALIDATED_KEY, order.getId(), order.getClientId(),
+                    order.getSellerId(), order.getGigId(), OrderStatus.PENDING.name(),
+                    OrderStatus.PENDING.name(), order.getTotalCost(), null,
+                    "Gig je validiran i narudzba ceka odgovor freelancera"
+                ));
                 log.info("Saga VALIDATED: orderId={} → remains PENDING", result.orderId());
             } else {
                 // Compensating transaction: gig was unavailable or inactive

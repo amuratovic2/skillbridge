@@ -29,7 +29,9 @@ public class OrderPatchService {
     }
 
     @Transactional
-    public Order patch(Long orderId, JsonPatch patch) {
+    public Order patch(Long orderId, Integer userId, String userRole, JsonPatch patch) {
+        OrderAccess.requireAdmin(userRole);
+
         Order order = orderRepository.findById(orderId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Narudžba nije pronađena"));
 

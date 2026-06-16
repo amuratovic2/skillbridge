@@ -22,7 +22,16 @@ public interface MessageRepository extends JpaRepository<Message, Integer> {
         Pageable pageable
     );
 
-    Page<Message> findByOrderId(Integer orderId, Pageable pageable);
+    @Query("""
+        SELECT m FROM Message m
+        WHERE m.orderId = :orderId
+          AND (m.senderId = :userId OR m.receiverId = :userId)
+    """)
+    Page<Message> findByOrderIdAndParticipant(
+        @Param("orderId") Integer orderId,
+        @Param("userId") Integer userId,
+        Pageable pageable
+    );
 
     @Query(value = """
         SELECT partner_id, last_message, last_at, unread_count FROM (

@@ -23,6 +23,7 @@ public class RabbitMQConfig {
     // communication-service (notifications), gig-service (terminal events),
     // and any future subscribers.
     public static final String ORDER_ACCEPTED_KEY  = "order.accepted";
+    public static final String ORDER_VALIDATED_KEY = "order.validated";
     public static final String ORDER_IN_PROGRESS_KEY = "order.in-progress";
     public static final String ORDER_DELIVERED_KEY = "order.delivered";
     public static final String ORDER_COMPLETED_KEY = "order.completed";

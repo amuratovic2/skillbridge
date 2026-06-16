@@ -388,7 +388,7 @@ describe('forms and cart pages', () => {
     await flushPromises();
 
     expect(cartState.value.remove.mock.calls[0][0]).toBe(7);
-    expect(partial.text()).toContain('Kreirano je 1 od 2');
+    expect(partial.text()).toContain('Zapoceto je kreiranje 1 od 2');
   });
 
   it('creates an order through the checkout modal', async () => {

@@ -36,6 +36,8 @@ public class DeliveryService {
     public Delivery create(Long orderId, Integer freelancerId, String message, String fileUrl, String fileName) {
         Order order = orderRepository.findById(orderId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        OrderAccess.requireSeller(order, freelancerId);
+        requireDeliverableStatus(order.getStatus());
 
         List<Delivery> existing = deliveryRepository.findByOrderIdOrderByVersionNumberDesc(orderId);
         int nextVersion = existing.isEmpty() ? 1 : existing.get(0).getVersionNumber() + 1;
@@ -78,11 +80,26 @@ public class DeliveryService {
         return saved;
     }
 
-    public List<Delivery> findByOrderId(Long orderId) {
+    public List<Delivery> findByOrderId(Long orderId, Integer userId, String userRole) {
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        OrderAccess.requireParticipantOrAdmin(order, userId, userRole);
         return deliveryRepository.findByOrderIdOrderByVersionNumberDesc(orderId);
     }
 
-    public Optional<Delivery> findByVersion(Long orderId, int versionNumber) {
+    public Optional<Delivery> findByVersion(Long orderId, int versionNumber, Integer userId, String userRole) {
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        OrderAccess.requireParticipantOrAdmin(order, userId, userRole);
         return deliveryRepository.findByOrderIdAndVersionNumber(orderId, versionNumber);
+    }
+
+    private void requireDeliverableStatus(OrderStatus status) {
+        if (status == OrderStatus.ACCEPTED
+            || status == OrderStatus.IN_PROGRESS
+            || status == OrderStatus.REVISION_REQUESTED) {
+            return;
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Narudzba nije spremna za isporuku");
     }
 }

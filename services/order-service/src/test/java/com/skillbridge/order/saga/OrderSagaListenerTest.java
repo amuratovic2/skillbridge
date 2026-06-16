@@ -42,7 +42,7 @@ class OrderSagaListenerTest {
     }
 
     @Test
-    void confirmedResult_keepsOrderPendingAndDoesNotPublish() throws Exception {
+    void confirmedResult_keepsOrderPendingAndPublishesValidatedEvent() throws Exception {
         Order order = pending(1L);
         when(orderRepository.findWithDetailsById(1L)).thenReturn(Optional.of(order));
 
@@ -53,7 +53,10 @@ class OrderSagaListenerTest {
         assertThat(order.getHistory()).anySatisfy(h ->
             assertThat(h.getActionType()).isEqualTo("SAGA_CONFIRMED"));
 
-        verify(eventPublisher, never()).publishOrderEvent(any());
+        ArgumentCaptor<OrderEvent> captor = ArgumentCaptor.forClass(OrderEvent.class);
+        verify(eventPublisher).publishOrderEvent(captor.capture());
+        assertThat(captor.getValue().eventType()).isEqualTo(RabbitMQConfig.ORDER_VALIDATED_KEY);
+        assertThat(captor.getValue().orderId()).isEqualTo(1L);
         verify(channel).basicAck(42L, false);
     }
 

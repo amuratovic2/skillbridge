@@ -62,11 +62,16 @@ export default function CustomOffersPage() {
       const updated = await customOffersApi.respond(offer.id, status);
       if (status === 'ACCEPTED' && updated.orderId) {
         navigate(`/dashboard/orders/${updated.orderId}`, {
-          state: { flash: { type: 'success', text: 'Ponuda je prihvacena i narudzba je kreirana.' } },
+          state: {
+            flash: {
+              type: 'info',
+              text: 'Ponuda je prihvacena i kreiranje narudzbe je zapoceto. Zavrsni rezultat stize kroz notifikaciju.',
+            },
+          },
         });
         return;
       }
-      setSuccess(status === 'REJECTED' ? 'Ponuda je odbijena.' : 'Ponuda je azurirana.');
+      setSuccess(status === 'REJECTED' ? 'Ponuda je odbijena.' : 'Obrada ponude je zapoceta.');
       load(tab);
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, 'Greška pri obradi ponude'));
@@ -228,7 +233,7 @@ export default function CustomOffersPage() {
           onClose={() => setCreating(false)}
           onCreated={() => {
             setCreating(false);
-            setSuccess('Ponuda je uspjesno poslana.');
+            setSuccess('Slanje ponude je zapoceto. Primaoc ce dobiti notifikaciju nakon obrade.');
             setTab('sent');
             load('sent');
           }}

@@ -68,7 +68,7 @@ export default function OrderDetailPage() {
     setActionSuccess(null);
     try {
       await ordersApi.updateStatus(order.id, newStatus);
-      setActionSuccess('Status narudzbe je uspjesno azuriran.');
+      setActionSuccess('Promjena statusa je započeta. Druga strana će dobiti notifikaciju nakon obrade.');
       fetchData();
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, 'Greška pri ažuriranju narudžbe'));
@@ -89,7 +89,7 @@ export default function OrderDetailPage() {
         content: newMessage,
       });
       setNewMessage('');
-      setActionSuccess('Poruka je uspjesno poslana.');
+      setActionSuccess('Poruka je poslana. Primaoc će dobiti notifikaciju nakon obrade.');
       fetchData();
     } catch (err: unknown) {
       setActionError(getApiErrorMessage(err, 'Slanje poruke nije uspjelo.'));
@@ -323,7 +323,7 @@ export default function OrderDetailPage() {
           onClose={() => setCancelOpen(false)}
           onDone={() => {
             setCancelOpen(false);
-            setActionSuccess('Narudzba je uspjesno otkazana.');
+            setActionSuccess('Otkazivanje je započeto. Druga strana će dobiti notifikaciju nakon obrade.');
             fetchData();
           }}
         />
@@ -335,7 +335,7 @@ export default function OrderDetailPage() {
           onClose={() => setRevisionOpen(false)}
           onDone={() => {
             setRevisionOpen(false);
-            setActionSuccess('Zahtjev za reviziju je poslan.');
+            setActionSuccess('Zahtjev za reviziju je započet. Freelancer će dobiti notifikaciju nakon obrade.');
             fetchData();
           }}
         />
@@ -347,7 +347,7 @@ export default function OrderDetailPage() {
           onClose={() => setDeliverOpen(false)}
           onDone={() => {
             setDeliverOpen(false);
-            setActionSuccess('Isporuka je uspjesno poslana.');
+            setActionSuccess('Isporuka je poslana na obradu. Klijent će dobiti notifikaciju nakon obrade.');
             fetchData();
           }}
         />

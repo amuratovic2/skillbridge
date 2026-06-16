@@ -63,6 +63,20 @@ public class OrderEventListener {
                         "Klijent je naručio uslugu. Prihvatite ili odbijte.",
                         orderId);
                 }
+                case "order.validated" -> {
+                    notifyPerspective(clientId, actorId, NotificationType.ORDER_UPDATE,
+                        "Narudzba validirana (#" + orderId + ")",
+                        "Provjera je zavrsena. Narudzba ceka odgovor freelancera.",
+                        "Narudzba validirana (#" + orderId + ")",
+                        "Provjera je zavrsena. Narudzba ceka odgovor freelancera.",
+                        orderId);
+                    notifyPerspective(sellerId, actorId, NotificationType.ORDER_UPDATE,
+                        "Narudzba spremna za odgovor (#" + orderId + ")",
+                        "Provjera je zavrsena. Prihvatite ili otkazite narudzbu.",
+                        "Narudzba spremna za odgovor (#" + orderId + ")",
+                        "Provjera je zavrsena. Prihvatite ili otkazite narudzbu.",
+                        orderId);
+                }
                 case "order.accepted" -> {
                     notifyPerspective(sellerId, actorId, NotificationType.ORDER_UPDATE,
                         "Prihvatili ste narudžbu (#" + orderId + ")",

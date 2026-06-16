@@ -72,9 +72,6 @@ importers:
       '@vitest/coverage-v8':
         specifier: 4.1.9
         version: 4.1.9(vitest@4.1.9)
-      '@vitest/ui':
-        specifier: 4.1.9
-        version: 4.1.9(vitest@4.1.9)
       autoprefixer:
         specifier: 10.4.13
         version: 10.4.13(postcss@8.4.38)
@@ -7039,7 +7036,8 @@ snapshots:
       esquery: 1.7.0
       typescript: 5.9.3
 
-  '@polka/url@1.0.0-next.29': {}
+  '@polka/url@1.0.0-next.29':
+    optional: true
 
   '@remix-run/router@1.23.2': {}
 
@@ -7735,6 +7733,7 @@ snapshots:
       tinyglobby: 0.2.16
       tinyrainbow: 3.1.0
       vitest: 4.1.9(@types/node@20.19.9)(@vitest/coverage-v8@4.1.9)(@vitest/ui@4.1.9)(jsdom@22.1.0)(vite@8.0.8(@types/node@20.19.9)(esbuild@0.27.7)(jiti@2.4.2)(less@4.5.1)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+    optional: true
 
   '@vitest/utils@4.1.9':
     dependencies:
@@ -8923,7 +8922,8 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.4
 
-  fflate@0.8.2: {}
+  fflate@0.8.2:
+    optional: true
 
   figures@3.2.0:
     dependencies:
@@ -9736,7 +9736,8 @@ snapshots:
 
   minimist@1.2.8: {}
 
-  mrmime@2.0.1: {}
+  mrmime@2.0.1:
+    optional: true
 
   ms@2.0.0: {}
 
@@ -10641,6 +10642,7 @@ snapshots:
       '@polka/url': 1.0.0-next.29
       mrmime: 2.0.1
       totalist: 3.0.1
+    optional: true
 
   smol-toml@1.6.1: {}
 
@@ -10874,7 +10876,8 @@ snapshots:
 
   toidentifier@1.0.1: {}
 
-  totalist@3.0.1: {}
+  totalist@3.0.1:
+    optional: true
 
   tough-cookie@4.1.4:
     dependencies:

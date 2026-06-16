@@ -113,6 +113,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             new RouteRule(HttpMethod.DELETE, parser.parse("/api/portfolios/**"), FREELANCER_ROLES),
 
             new RouteRule(HttpMethod.POST, parser.parse("/api/orders/**"), CLIENT_ROLES),
+            new RouteRule(HttpMethod.PATCH, parser.parse("/api/orders/{id:[0-9]+}"), ADMIN_ROLES),
             new RouteRule(HttpMethod.GET, parser.parse("/api/orders/overdue"), ADMIN_ROLES),
             new RouteRule(HttpMethod.GET, parser.parse("/api/orders/statistics/**"), ADMIN_ROLES),
             new RouteRule(HttpMethod.POST, parser.parse("/api/deliveries/**"), FREELANCER_ROLES),

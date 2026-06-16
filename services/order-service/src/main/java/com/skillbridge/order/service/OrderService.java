@@ -147,6 +147,12 @@ public class OrderService {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Narudžba nije pronađena"));
     }
 
+    public Order findByIdForUser(Long id, Integer userId, String userRole) {
+        Order order = findById(id);
+        OrderAccess.requireParticipantOrAdmin(order, userId, userRole);
+        return order;
+    }
+
     public Map<String, Object> findByClient(Integer clientId, int page, int limit, String sortBy, String sortDir) {
         Sort sort = buildSort(sortBy, sortDir);
         Page<Order> orderPage = orderRepository.findByClientIdOrderByOrderDateDesc(
@@ -188,12 +194,7 @@ public class OrderService {
     public Order updateStatus(Long orderId, Integer userId, String userRole, OrderStatus newStatus, String note) {
         Order order = findById(orderId);
 
-        boolean isAdmin = "ADMIN".equals(userRole);
-        boolean isParty = userId.equals(order.getClientId()) || userId.equals(order.getSellerId());
-        if (!isAdmin && !isParty) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                "Nemate pristup ovoj narudžbi");
-        }
+        OrderAccess.requireParticipantOrAdmin(order, userId, userRole);
 
         OrderStatus oldStatus = order.getStatus();
 

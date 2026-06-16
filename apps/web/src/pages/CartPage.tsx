@@ -27,14 +27,19 @@ export default function CartPage() {
         const createdGigIds = new Set(createdOrders.map((order) => order.gigId));
         createdGigIds.forEach(remove);
         setError(
-          `Kreirano je ${createdOrders.length} od ${items.length} narudžbi. Neuspjele stavke su ostale u korpi.`,
+          `Zapoceto je kreiranje ${createdOrders.length} od ${items.length} narudzbi. Neuspjele stavke su ostale u korpi.`,
         );
         return;
       }
 
       clear();
       navigate('/dashboard/orders', {
-        state: { flash: { type: 'success', text: 'Narudzbe su uspjesno kreirane.' } },
+        state: {
+          flash: {
+            type: 'info',
+            text: 'Kreiranje narudzbi je zapoceto. Zavrsni rezultat validacije stize kroz notifikacije.',
+          },
+        },
       });
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, 'Greška pri kreiranju narudžbi. Korpa nije ispražnjena.'));

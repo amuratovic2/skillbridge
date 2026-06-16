@@ -152,7 +152,7 @@ class MessageServiceTest {
         createMessage(1, 2, 30, "Narudzba 30", LocalDateTime.now().minusMinutes(2), false);
         createMessage(2, 1, 31, "Narudzba 31", LocalDateTime.now().minusMinutes(1), false);
 
-        var response = messageService.getConversationsByOrder(30, 1, 10);
+        var response = messageService.getConversationsByOrder(30, 1, 1, 10);
 
         assertThat(response.data()).hasSize(1);
         assertThat(response.data().getFirst().orderId()).isEqualTo(30);
@@ -164,12 +164,21 @@ class MessageServiceTest {
         createMessage(1, 2, 30, "B", LocalDateTime.now().minusMinutes(2), false);
         createMessage(2, 1, 30, "A", LocalDateTime.now().minusMinutes(1), false);
 
-        var response = messageService.getConversationsByOrder(30, 1, 10, "content", "asc");
+        var response = messageService.getConversationsByOrder(30, 1, 1, 10, "content", "asc");
         var meta = (Map<?, ?>) response.meta();
 
         assertThat(response.data()).extracting("content").containsExactly("A", "B");
         assertThat(meta.get("sortBy")).isEqualTo("content");
         assertThat(meta.get("direction")).isEqualTo("asc");
+    }
+
+    @Test
+    void getConversationsByOrderHidesMessagesFromNonParticipant() {
+        createMessage(1, 2, 30, "Privatno", LocalDateTime.now(), false);
+
+        var response = messageService.getConversationsByOrder(30, 9, 1, 10);
+
+        assertThat(response.data()).isEmpty();
     }
 
     @Test

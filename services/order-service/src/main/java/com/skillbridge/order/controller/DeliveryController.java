@@ -44,17 +44,23 @@ public class DeliveryController {
     }
 
     @GetMapping("/order/{orderId}")
-    public ApiResponse<?> findByOrderId(@PathVariable Long orderId) {
-        return ApiResponse.ok(deliveryService.findByOrderId(orderId));
+    public ApiResponse<?> findByOrderId(
+        @PathVariable Long orderId,
+        @RequestHeader("x-user-id") Integer userId,
+        @RequestHeader("x-user-role") String userRole
+    ) {
+        return ApiResponse.ok(deliveryService.findByOrderId(orderId, userId, userRole));
     }
 
     @GetMapping("/order/{orderId}/version/{version}")
     public ApiResponse<?> findByVersion(
         @PathVariable Long orderId,
-        @PathVariable int version
+        @PathVariable int version,
+        @RequestHeader("x-user-id") Integer userId,
+        @RequestHeader("x-user-role") String userRole
     ) {
         return ApiResponse.ok(
-            deliveryService.findByVersion(orderId, version)
+            deliveryService.findByVersion(orderId, version, userId, userRole)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Delivery version not found"))
         );
     }

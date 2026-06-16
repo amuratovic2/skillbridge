@@ -44,15 +44,15 @@ export default function OrderCheckoutModal({ gig, onClose }: Props) {
   };
 
   return (
-    <Modal title={createdOrder ? 'Narudžba je kreirana' : 'Potvrda narudžbe'} onClose={onClose} size="lg">
+    <Modal title={createdOrder ? 'Narudžba je započeta' : 'Potvrda narudžbe'} onClose={onClose} size="lg">
       {createdOrder ? (
         <div className="space-y-5">
           <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3">
             <p className="text-sm font-medium text-green-800">
-              Narudžba #{createdOrder.id} je poslana freelanceru.
+              Kreiranje narudžbe #{createdOrder.id} je započeto.
             </p>
             <p className="text-sm text-green-700 mt-1">
-              Status je trenutno na čekanju. Freelancer treba prihvatiti narudžbu prije početka rada.
+              Završni rezultat validacije stiže kroz notifikaciju, a zatim freelancer prihvata narudžbu.
             </p>
           </div>
 

@@ -111,4 +111,34 @@ class DeliveryServiceTest {
             .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND));
     }
+
+    @Test
+    void create_rejectsNonSeller() {
+        when(orderRepository.findById(7L)).thenReturn(Optional.of(acceptedOrder()));
+
+        assertThatThrownBy(() -> service.create(7L, 99, "x", null, null))
+            .isInstanceOf(ResponseStatusException.class)
+            .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN));
+
+        verify(deliveryRepository, never()).save(any());
+    }
+
+    @Test
+    void findByOrderIdRejectsNonParticipant() {
+        when(orderRepository.findById(7L)).thenReturn(Optional.of(acceptedOrder()));
+
+        assertThatThrownBy(() -> service.findByOrderId(7L, 99, "CLIENT"))
+            .isInstanceOf(ResponseStatusException.class)
+            .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN));
+    }
+
+    @Test
+    void findByOrderIdAllowsAdmin() {
+        when(orderRepository.findById(7L)).thenReturn(Optional.of(acceptedOrder()));
+        when(deliveryRepository.findByOrderIdOrderByVersionNumberDesc(7L)).thenReturn(List.of());
+
+        assertThat(service.findByOrderId(7L, 99, "ADMIN")).isEmpty();
+    }
 }

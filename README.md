@@ -1,141 +1,105 @@
 # SkillBridge
 
-Platforma za digitalne usluge koja povezuje klijente i freelancere. Projekat iz predmeta "Praktikum - Napredne web tehnologije", Elektrotehnicki fakultet Sarajevo.
+SkillBridge je platforma za digitalne usluge koja povezuje klijente i freelancere. Aplikacija podrzava registraciju i prijavu korisnika, upravljanje profilima i gigovima, narudzbe, prilagodene ponude, isporuke, poruke, recenzije i notifikacije kroz mikroservisnu arhitekturu.
 
-## Tech Stack
+## Tim
 
-- **Frontend:** React + TypeScript + Vite + Tailwind CSS
-- **Backend:** Spring Boot 3.4 + Java 21 (mikroservisna arhitektura)
-- **API Gateway:** Spring Cloud Gateway
-- **Baza:** PostgreSQL 16 (Docker)
-- **ORM:** Spring Data JPA (Hibernate)
+- Ajla Hodžić
+- Esma Dizdarević
+- Ensar Hodžić
+- Alem Muratović
 
-## Arhitektura
+## Demo video
 
-```
-apps/
-  web/                            -> React frontend (port 4200)
-services/
-  discovery-service/              -> Eureka service discovery (port 8761)
-  api-gateway/                    -> Spring Cloud Gateway (port 3000)
-  user-service/                   -> Auth, korisnici, profili, portfolio (port 3001)
-  gig-service/                    -> Usluge, kategorije, tagovi (port 3002)
-  order-service/                  -> Narudzbe, isporuke, ponude (port 3003)
-  communication-service/          -> Poruke, recenzije, sporovi (port 3004)
-docker/
-  init-schemas.sql                -> Inicijalne database sheme
-```
+[Video](https://youtu.be/G9B8GTyNxO8)
 
-## Pokretanje projekta
+## Tehnologije
 
-### 1. Preduvjeti
+- Frontend: React, TypeScript, Vite, Tailwind CSS
+- Backend: Java 21, Spring Boot, Spring Cloud Gateway, Eureka
+- Baza i broker: PostgreSQL 16, RabbitMQ
+- Build i workspace: pnpm, Nx, Maven
 
-- **Java 21** - [download](https://adoptium.net/) ili `brew install openjdk@21` (Mac)
-- **Maven** - [download](https://maven.apache.org/download.cgi) ili `brew install maven` (Mac)
-- **Node.js 20+** - [download](https://nodejs.org/)
-- **pnpm** - `npm install -g pnpm`
-- **Docker** - [download](https://www.docker.com/products/docker-desktop/)
+## Struktura
 
-### 2. Pokreni bazu podataka
-
-```
-docker compose up -d
+```text
+apps/web                     React frontend
+services/api-gateway         API Gateway i JWT provjere
+services/discovery-service   Eureka discovery
+services/user-service        Auth, korisnici, profili, portfolio
+services/gig-service         Gigovi, kategorije i tagovi
+services/order-service       Narudzbe, isporuke i prilagodene ponude
+services/communication-service Poruke, recenzije, sporovi i notifikacije
+docker                       Inicijalizacija PostgreSQL shema
 ```
 
-PostgreSQL je na portu **5433** i ne dira lokalni Postgres na 5432.
+## Pokretanje preko Dockera
 
-### 3. Instaliraj frontend dependencies
+Preduvjet je instaliran Docker Desktop ili Docker Engine sa Docker Compose podrskom.
 
+1. Kopirajte repozitorij i udite u root direktorij.
+
+```bash
+cd skillbridge
 ```
+
+2. Pokrenite sve servise.
+
+```bash
+docker compose up --build
+```
+
+3. Otvorite aplikaciju.
+
+```text
+Frontend:   http://localhost:4200
+Gateway:    http://localhost:3000
+Eureka:     http://localhost:8761
+RabbitMQ:   http://localhost:15672
+PostgreSQL: localhost:5433
+```
+
+RabbitMQ login je `skillbridge` / `skillbridge`. PostgreSQL koristi bazu `skillbridge`, korisnika `skillbridge` i lozinku `skillbridge123`.
+
+Korisne komande:
+
+```bash
+docker compose ps
+docker compose logs -f api-gateway
+docker compose down
+docker compose down -v
+```
+
+Komanda `docker compose down -v` brise Docker volume sa podacima baze. Nakon sljedeceg pokretanja sheme i seed podaci se kreiraju ponovo.
+
+## Lokalno pokretanje bez Dockera
+
+Za lokalni razvoj su potrebni Java 21, Maven, Node.js 20+ i pnpm. Infrastrukturu mozete pokrenuti preko Dockera, a servise lokalno:
+
+```bash
+docker compose up -d skillbridge-db skillbridge-rabbitmq
 pnpm install
+pnpm dev
 ```
 
-### 4. Pokreni backend servise
+Pojedinacni frontend build i testovi:
 
-Svaki servis u zasebnom terminalu:
-
+```bash
+pnpm build
+pnpm test
 ```
-cd services/discovery-service
-mvn spring-boot:run
-```
-
-```
-cd services/user-service
-mvn spring-boot:run
-```
-
-```
-cd services/gig-service
-mvn spring-boot:run
-```
-
-```
-cd services/order-service
-mvn spring-boot:run
-```
-
-```
-cd services/communication-service
-mvn spring-boot:run
-```
-
-```
-cd services/api-gateway
-mvn spring-boot:run
-```
-
-Ili koristeci npm skripte iz root direktorija:
-
-```
-npm run dev:discovery
-npm run dev:user
-npm run dev:gig
-npm run dev:order
-npm run dev:comm
-npm run dev:gateway
-```
-
-### 5. Pokreni frontend
-
-```
-npm run dev:web
-```
-
-### Ili pokreni sve odjednom
-
-```
-npm run dev
-```
-
-Ovo pokrece svih 5 backend servisa i frontend paralelno, sa oznacenim logovima po boji.
-
-### 6. Otvori aplikaciju
-
-Frontend: [http://localhost:4200](http://localhost:4200)
 
 ## Demo nalozi
 
-Podaci se automatski seeduju pri prvom pokretanju svakog servisa.
+Seed podaci se dodaju pri pokretanju servisa. Svi demo nalozi koriste lozinku `password123`.
 
-Svi nalozi koriste lozinku: `password123`
-
-| Uloga      | Email                |
-|------------|----------------------|
-| Admin      | admin@skillbridge.ba |
-| Freelancer | marija@example.com   |
-| Freelancer | stefan@example.com   |
-| Freelancer | ana@example.com      |
-| Freelancer | emir@example.com     |
-| Freelancer | lejla@example.com    |
-| Klijent    | ahmed@example.com    |
-| Klijent    | nina@example.com     |
-
-## Korisne komande
-
-```
-# Zaustavi bazu
-docker compose down
-
-# Resetuj bazu (brise sve podatke - seeduju se ponovo pri pokretanju)
-docker compose down -v && docker compose up -d
-```
+| Uloga | Email |
+| --- | --- |
+| Admin | admin@skillbridge.ba |
+| Freelancer | marija@example.com |
+| Freelancer | stefan@example.com |
+| Freelancer | ana@example.com |
+| Freelancer | emir@example.com |
+| Freelancer | lejla@example.com |
+| Klijent | ahmed@example.com |
+| Klijent | nina@example.com |

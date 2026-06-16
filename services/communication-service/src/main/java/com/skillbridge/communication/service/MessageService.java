@@ -133,20 +133,21 @@ public class MessageService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<MessageResponse> getConversationsByOrder(Integer orderId, int page, int limit) {
-        return getConversationsByOrder(orderId, page, limit, "sentAt", "desc");
+    public PageResponse<MessageResponse> getConversationsByOrder(Integer orderId, Integer userId, int page, int limit) {
+        return getConversationsByOrder(orderId, userId, page, limit, "sentAt", "desc");
     }
 
     @Transactional(readOnly = true)
     public PageResponse<MessageResponse> getConversationsByOrder(
         Integer orderId,
+        Integer userId,
         int page,
         int limit,
         String sortBy,
         String direction
     ) {
         Pageable pageable = pageableFactory.build(page, limit, sortBy, direction, MESSAGE_SORTS);
-        Page<Message> result = messageRepository.findByOrderId(orderId, pageable);
+        Page<Message> result = messageRepository.findByOrderIdAndParticipant(orderId, userId, pageable);
         return new PageResponse<>(
             result.getContent().stream().map(MessageMapper::toResponse).toList(),
             pageMeta(result, page, limit, sortBy, direction)

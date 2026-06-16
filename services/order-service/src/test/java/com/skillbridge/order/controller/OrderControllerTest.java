@@ -58,12 +58,13 @@ class OrderControllerTest {
 
         when(orderService.create(anyInt(), anyInt(), any())).thenReturn(fakeOrder());
 
-        mockMvc.perform(post("/orders")
+            mockMvc.perform(post("/orders")
                 .header("x-user-id", 1)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(req)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true));
+            .andExpect(status().isAccepted())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.message").value("Kreiranje narudzbe je zapoceto. Zavrsni rezultat validacije stize kroz notifikaciju."));
     }
 
     @Test
@@ -80,9 +81,11 @@ class OrderControllerTest {
 
     @Test
     void findById_success() throws Exception {
-        when(orderService.findById(1L)).thenReturn(fakeOrder());
+        when(orderService.findByIdForUser(1L, 1, "CLIENT")).thenReturn(fakeOrder());
 
-        mockMvc.perform(get("/orders/1"))
+        mockMvc.perform(get("/orders/1")
+                .header("x-user-id", 1)
+                .header("x-user-role", "CLIENT"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
     }

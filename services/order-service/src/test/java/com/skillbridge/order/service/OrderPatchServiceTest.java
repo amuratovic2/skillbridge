@@ -54,7 +54,7 @@ class OrderPatchServiceTest {
         when(orderRepository.findById(1L)).thenReturn(Optional.of(existing()));
         when(orderRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        Order result = service.patch(1L, patchFrom(
+        Order result = service.patch(1L, 99, "ADMIN", patchFrom(
             "[{\"op\":\"replace\",\"path\":\"/totalCost\",\"value\":250.00}," +
             "{\"op\":\"replace\",\"path\":\"/maxRevisions\",\"value\":5}]"
         ));
@@ -71,7 +71,7 @@ class OrderPatchServiceTest {
             "[{\"op\":\"replace\",\"path\":\"/status\",\"value\":\"COMPLETED\"}]"
         );
 
-        assertThatThrownBy(() -> service.patch(1L, patch))
+        assertThatThrownBy(() -> service.patch(1L, 99, "ADMIN", patch))
             .isInstanceOf(ResponseStatusException.class)
             .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
                 .isEqualTo(HttpStatus.BAD_REQUEST));
@@ -85,7 +85,7 @@ class OrderPatchServiceTest {
             "[{\"op\":\"replace\",\"path\":\"/totalCost\",\"value\":-10}]"
         );
 
-        assertThatThrownBy(() -> service.patch(1L, patch))
+        assertThatThrownBy(() -> service.patch(1L, 99, "ADMIN", patch))
             .isInstanceOf(ResponseStatusException.class)
             .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
                 .isEqualTo(HttpStatus.BAD_REQUEST));
@@ -99,7 +99,7 @@ class OrderPatchServiceTest {
             "[{\"op\":\"replace\",\"path\":\"/maxRevisions\",\"value\":-1}]"
         );
 
-        assertThatThrownBy(() -> service.patch(1L, patch))
+        assertThatThrownBy(() -> service.patch(1L, 99, "ADMIN", patch))
             .isInstanceOf(ResponseStatusException.class)
             .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
                 .isEqualTo(HttpStatus.BAD_REQUEST));
@@ -113,9 +113,21 @@ class OrderPatchServiceTest {
             "[{\"op\":\"replace\",\"path\":\"/totalCost\",\"value\":200}]"
         );
 
-        assertThatThrownBy(() -> service.patch(99L, patch))
+        assertThatThrownBy(() -> service.patch(99L, 99, "ADMIN", patch))
             .isInstanceOf(ResponseStatusException.class)
             .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND));
+    }
+
+    @Test
+    void patch_rejectsNonAdmin() throws Exception {
+        JsonPatch patch = patchFrom(
+            "[{\"op\":\"replace\",\"path\":\"/totalCost\",\"value\":200}]"
+        );
+
+        assertThatThrownBy(() -> service.patch(1L, 1, "CLIENT", patch))
+            .isInstanceOf(ResponseStatusException.class)
+            .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN));
     }
 }
